@@ -503,30 +503,31 @@ client.on("messageCreate", async (message) => {
         ],
       });
     }
-    }
+  }
 
   // Otomatik cevaplar
   const autoResponses = {
-    "sa": "as hg avcı",
-    "selam": "selam canım nasılsın?",
-    "merhaba": "merhaba! hoş geldin",
-    "günaydın": "günaydın, güzel günler!",
+    sa: "as hg avcı",
+    selam: "selam canım nasılsın?",
+    merhaba: "merhaba! hoş geldin",
+    günaydın: "günaydın, güzel günler!",
     "iyi geceler": "iyi geceler, tatlı rüyalar ✨",
-    "naber": "iyilik senden naber?",
-    "nasılsın": "iyiyim sen nasılsın?",
-    "bb": "görüşürüz bay bay 👋",
-    "bye": "görüşürüz! 👋",
-    "teşekkürler": "rica ederim! 😊",
-    "sağol": "ne demek canım!",
-    "bot": "evet ben botum, nasıl yardımcı olabilirim?",
-    "help": "Komutları görmek için !yardım yazabilirsin",
-    "discord": "Discord'da sohbet etmeyi seviyorum! 💬"
+    naber: "iyilik senden naber?",
+    nasılsın: "iyiyim sen nasılsın?",
+    bb: "görüşürüz bay bay 👋",
+    bye: "görüşürüz! 👋",
+    teşekkürler: "rica ederim! 😊",
+    sağol: "ne demek canım!",
+    bot: "evet ben botum, nasıl yardımcı olabilirim?",
+    help: "Komutları görmek için !yardım yazabilirsin",
+    discord: "Discord'da sohbet etmeyi seviyorum! 💬",
+    "yapımcın kim": "Axel_ey!👑",
   };
 
   // Mesaj içeriği kontrolü (komut değilse)
   if (!message.content.startsWith(prefix)) {
     const messageContent = message.content.toLowerCase();
-    
+
     // Otomatik cevaplarda kontrol et
     for (const [trigger, response] of Object.entries(autoResponses)) {
       if (messageContent.includes(trigger)) {
