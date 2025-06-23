@@ -1,5 +1,10 @@
 require("dotenv").config();
-const { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  PermissionsBitField,
+  EmbedBuilder,
+} = require("discord.js");
 
 const client = new Client({
   intents: [
@@ -11,6 +16,22 @@ const client = new Client({
 });
 
 const prefix = "!";
+
+/* Export */
+
+// Sunucu oluşturma ve proje aktivitesi sağlama.
+const express = require("express");
+const app = express();
+const port = 5000;
+
+// Web sunucu
+app.get("/", (req, res) => {
+  res.sendStatus(200);
+});
+
+app.listen(port, () => {
+  console.log(`Sunucu ${port} numaralı bağlantı noktasında yürütülüyor.`);
+});
 
 client.on("ready", () => {
   console.log(`${client.user.tag} olarak giriş yapıldı!`);
@@ -30,15 +51,47 @@ client.on("messageCreate", async (message) => {
       .setTitle("Bot Komutları")
       .setDescription("İşte kullanabileceğin komutlar:")
       .addFields(
-        { name: "!ban @kullanıcı", value: "Birini sunucudan banlar.", inline: true },
-        { name: "!kick @kullanıcı", value: "Birini sunucudan atar.", inline: true },
-        { name: "!temizle <sayı>", value: "Belirtilen sayı kadar mesaj siler (max 100).", inline: true },
+        {
+          name: "!ban @kullanıcı",
+          value: "Birini sunucudan banlar.",
+          inline: true,
+        },
+        {
+          name: "!kick @kullanıcı",
+          value: "Birini sunucudan atar.",
+          inline: true,
+        },
+        {
+          name: "!temizle <sayı>",
+          value: "Belirtilen sayı kadar mesaj siler (max 100).",
+          inline: true,
+        },
         { name: "!ping", value: "Botun gecikmesini gösterir.", inline: true },
-        { name: "!avatar @kullanıcı", value: "Kullanıcının avatarını gösterir.", inline: true },
-        { name: "!sunucubilgi", value: "Sunucu hakkında bilgi verir.", inline: true },
-        { name: "!roll <sayı>", value: "1 ile belirttiğin sayı arasında rastgele sayı atar.", inline: true },
-        { name: "!yaz <metin>", value: "Bot istediğin metni yazar.", inline: true },
-        { name: "!profil", value: "Kendi profil bilgilerini gösterir.", inline: true }
+        {
+          name: "!avatar @kullanıcı",
+          value: "Kullanıcının avatarını gösterir.",
+          inline: true,
+        },
+        {
+          name: "!sunucubilgi",
+          value: "Sunucu hakkında bilgi verir.",
+          inline: true,
+        },
+        {
+          name: "!roll <sayı>",
+          value: "1 ile belirttiğin sayı arasında rastgele sayı atar.",
+          inline: true,
+        },
+        {
+          name: "!yaz <metin>",
+          value: "Bot istediğin metni yazar.",
+          inline: true,
+        },
+        {
+          name: "!profil",
+          value: "Kendi profil bilgilerini gösterir.",
+          inline: true,
+        },
       )
       .setFooter({ text: "Bot tarafından sağlanmıştır" })
       .setTimestamp();
@@ -49,69 +102,141 @@ client.on("messageCreate", async (message) => {
   // Komutlar
   if (command === "ban") {
     if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("🚫 Ban yetkin yok knk 😅")] });
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("🚫 Ban yetkin yok knk 😅"),
+        ],
+      });
     }
 
     const member = message.mentions.members.first();
     if (!member) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ Kimi banlayacağımı etiketlemedin knk.")] });
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("❗ Kimi banlayacağımı etiketlemedin knk."),
+        ],
+      });
     }
 
     try {
       await member.ban();
-      message.channel.send({ embeds: [new EmbedBuilder().setColor("Green").setDescription(`✅ ${member.user.tag} sunucudan banlandı.`)] });
+      message.channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Green")
+            .setDescription(`✅ ${member.user.tag} sunucudan banlandı.`),
+        ],
+      });
     } catch {
-      message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Banlayamadım knk. Yetkim yetmedi galiba.")] });
+      message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("❌ Banlayamadım knk. Yetkim yetmedi galiba."),
+        ],
+      });
     }
-  }
-
-  else if (command === "kick") {
-    if (!message.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("🚫 Kick yetkin yok dostum.")] });
+  } else if (command === "kick") {
+    if (
+      !message.member.permissions.has(PermissionsBitField.Flags.KickMembers)
+    ) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("🚫 Kick yetkin yok dostum."),
+        ],
+      });
     }
 
     const member = message.mentions.members.first();
     if (!member) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ Kimi kickleyeceğimi etiketlemedin.")] });
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("❗ Kimi kickleyeceğimi etiketlemedin."),
+        ],
+      });
     }
 
     try {
       await member.kick();
-      message.channel.send({ embeds: [new EmbedBuilder().setColor("Green").setDescription(`✅ ${member.user.tag} sunucudan atıldı.`)] });
+      message.channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Green")
+            .setDescription(`✅ ${member.user.tag} sunucudan atıldı.`),
+        ],
+      });
     } catch {
-      message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Kick atamadım knk. Bi hata oldu.")] });
+      message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("❌ Kick atamadım knk. Bi hata oldu."),
+        ],
+      });
     }
-  }
-
-  else if (command === "temizle") {
-    if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("🚫 Mesajları temizlemek için yetkin yok.")] });
+  } else if (command === "temizle") {
+    if (
+      !message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)
+    ) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("🚫 Mesajları temizlemek için yetkin yok."),
+        ],
+      });
     }
 
     const miktar = parseInt(args[0]);
     if (!miktar || miktar < 1 || miktar > 100) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ 1 ile 100 arasında bir sayı yazmalısın.")] });
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("❗ 1 ile 100 arasında bir sayı yazmalısın."),
+        ],
+      });
     }
 
     try {
       await message.channel.bulkDelete(miktar + 1, true);
-      const msg = await message.channel.send({ embeds: [new EmbedBuilder().setColor("Green").setDescription(`✅ ${miktar} mesaj silindi.`)] });
+      const msg = await message.channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Green")
+            .setDescription(`✅ ${miktar} mesaj silindi.`),
+        ],
+      });
       setTimeout(() => msg.delete(), 3000);
     } catch {
-      message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Mesajları silemedim knk.")] });
+      message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("❌ Mesajları silemedim knk."),
+        ],
+      });
     }
-  }
-
-  else if (command === "ping") {
+  } else if (command === "ping") {
     const ping = Date.now() - message.createdTimestamp;
-    message.reply({ embeds: [new EmbedBuilder().setColor("#0099ff").setDescription(`🏓 Pong! Gecikme: ${ping} ms`)] });
-  }
-
-  else if (command === "yardım") {
+    message.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor("#0099ff")
+          .setDescription(`🏓 Pong! Gecikme: ${ping} ms`),
+      ],
+    });
+  } else if (command === "yardım") {
     sendHelpEmbed();
-  }
-
-  else if (command === "avatar") {
+  } else if (command === "avatar") {
     const member = message.mentions.members.first() || message.member;
     message.channel.send({
       embeds: [
@@ -122,9 +247,7 @@ client.on("messageCreate", async (message) => {
           .setTimestamp(),
       ],
     });
-  }
-
-  else if (command === "sunucubilgi") {
+  } else if (command === "sunucubilgi") {
     const { guild } = message;
     const sunucuEmbed = new EmbedBuilder()
       .setColor("#0099ff")
@@ -133,38 +256,56 @@ client.on("messageCreate", async (message) => {
         { name: "Sunucu Adı", value: guild.name, inline: true },
         { name: "Sunucu ID", value: guild.id, inline: true },
         { name: "Sunucu Sahibi", value: `<@${guild.ownerId}>`, inline: true },
-        { name: "Üye Sayısı", value: guild.memberCount.toString(), inline: true },
-        { name: "Oluşturulma Tarihi", value: guild.createdAt.toDateString(), inline: true }
+        {
+          name: "Üye Sayısı",
+          value: guild.memberCount.toString(),
+          inline: true,
+        },
+        {
+          name: "Oluşturulma Tarihi",
+          value: guild.createdAt.toDateString(),
+          inline: true,
+        },
       )
       .setTimestamp();
 
     message.channel.send({ embeds: [sunucuEmbed] });
-  }
-
-  else if (command === "roll") {
+  } else if (command === "roll") {
     const max = parseInt(args[0]) || 100;
     if (max < 1) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ En az 1 olmalı knk.")] });
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("❗ En az 1 olmalı knk."),
+        ],
+      });
     }
     const sayı = Math.floor(Math.random() * max) + 1;
     message.channel.send({
       embeds: [
         new EmbedBuilder()
           .setColor("#0099ff")
-          .setDescription(`${message.author}, 1 ile ${max} arasında ${sayı} sayısını attın! 🎲`),
+          .setDescription(
+            `${message.author}, 1 ile ${max} arasında ${sayı} sayısını attın! 🎲`,
+          ),
       ],
     });
-  }
-
-  else if (command === "yaz") {
+  } else if (command === "yaz") {
     const yazı = args.join(" ");
     if (!yazı) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ Ne yazmamı istiyorsun knk?")] });
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("❗ Ne yazmamı istiyorsun knk?"),
+        ],
+      });
     }
-    message.channel.send({ embeds: [new EmbedBuilder().setColor("#0099ff").setDescription(yazı)] });
-  }
-
-  else if (command === "profil") {
+    message.channel.send({
+      embeds: [new EmbedBuilder().setColor("#0099ff").setDescription(yazı)],
+    });
+  } else if (command === "profil") {
     const member = message.member;
     const profilEmbed = new EmbedBuilder()
       .setColor("#0099ff")
@@ -172,91 +313,200 @@ client.on("messageCreate", async (message) => {
       .addFields(
         { name: "İsim", value: member.user.tag, inline: true },
         { name: "ID", value: member.id, inline: true },
-        { name: "Hesap Oluşturulma", value: member.user.createdAt.toDateString(), inline: true },
-        { name: "Sunucuya Katılma", value: member.joinedAt.toDateString(), inline: true }
+        {
+          name: "Hesap Oluşturulma",
+          value: member.user.createdAt.toDateString(),
+          inline: true,
+        },
+        {
+          name: "Sunucuya Katılma",
+          value: member.joinedAt.toDateString(),
+          inline: true,
+        },
       )
       .setTimestamp();
 
     message.channel.send({ embeds: [profilEmbed] });
   }
   // Süreli mute komutu: !mute @kullanıcı 10m
-if (command === "mute") {
-  if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("🚫 Mute yetkin yok knk!")] });
+  if (command === "mute") {
+    if (
+      !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)
+    ) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("🚫 Mute yetkin yok knk!"),
+        ],
+      });
+    }
+
+    const member = message.mentions.members.first();
+    if (!member) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("❗ Kimi mute edeceğimi etiketlemedin."),
+        ],
+      });
+    }
+
+    const muteRole = message.guild.roles.cache.find((r) => r.name === "Muted");
+    if (!muteRole) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription(`🚫 Sunucuda "Muted" rolü bulunamadı!`),
+        ],
+      });
+    }
+
+    if (member.roles.cache.has(muteRole.id)) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("Bu kullanıcı zaten mute’lu!"),
+        ],
+      });
+    }
+
+    // Süre argümanı (örn: 10m, 1h, 30s)
+    const süreArg = args[1];
+    if (!süreArg) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription(
+              "❗ Süre belirtmedin. Örnek: `!mute @kullanıcı 10m`",
+            ),
+        ],
+      });
+    }
+
+    // Süreyi ms cinsine çevirelim
+    const ms = require("ms");
+    const süreMs = ms(süreArg);
+    if (!süreMs) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("❗ Süre formatı geçersiz. Örnek: 10m, 1h, 30s"),
+        ],
+      });
+    }
+
+    try {
+      await member.roles.add(muteRole);
+      message.channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Green")
+            .setDescription(
+              `${member.user.tag} ${süreArg} boyunca mute’landı.`,
+            ),
+        ],
+      });
+
+      // Süre sonunda mute rolünü kaldır
+      setTimeout(async () => {
+        if (member.roles.cache.has(muteRole.id)) {
+          await member.roles.remove(muteRole);
+          message.channel.send({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("Green")
+                .setDescription(
+                  `${member.user.tag} artık unmute edildi (süre doldu).`,
+                ),
+            ],
+          });
+        }
+      }, süreMs);
+    } catch {
+      message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("Mute atamadım knk. Yetkim yetmiyor olabilir."),
+        ],
+      });
+    }
   }
 
-  const member = message.mentions.members.first();
-  if (!member) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ Kimi mute edeceğimi etiketlemedin.")] });
+  // !unmute @kullanıcı komutu aynen kalsın:
+  else if (command === "unmute") {
+    if (
+      !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)
+    ) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("🚫 Unmute yetkin yok knk!"),
+        ],
+      });
+    }
+
+    const member = message.mentions.members.first();
+    if (!member) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("❗ Kimi unmute edeceğimi etiketlemedin."),
+        ],
+      });
+    }
+
+    const muteRole = message.guild.roles.cache.find((r) => r.name === "Muted");
+    if (!muteRole) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription(`🚫 Sunucuda "Muted" rolü bulunamadı!`),
+        ],
+      });
+    }
+
+    if (!member.roles.cache.has(muteRole.id)) {
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Yellow")
+            .setDescription("Bu kullanıcı mute’lu değil!"),
+        ],
+      });
+    }
+
+    try {
+      await member.roles.remove(muteRole);
+      message.channel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Green")
+            .setDescription(`${member.user.tag} unmute edildi.`),
+        ],
+      });
+    } catch {
+      message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("Red")
+            .setDescription("Unmute yapamadım knk. Yetkim yetmiyor olabilir."),
+        ],
+      });
+    }
+    if (message === "sa") {
+      message.reply("as hg avcı");
+    }
   }
-
-  const muteRole = message.guild.roles.cache.find(r => r.name === "Muted");
-  if (!muteRole) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription(`🚫 Sunucuda "Muted" rolü bulunamadı!`)] });
-  }
-
-  if (member.roles.cache.has(muteRole.id)) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("Bu kullanıcı zaten mute’lu!")] });
-  }
-
-  // Süre argümanı (örn: 10m, 1h, 30s)
-  const süreArg = args[1];
-  if (!süreArg) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ Süre belirtmedin. Örnek: `!mute @kullanıcı 10m`")] });
-  }
-
-  // Süreyi ms cinsine çevirelim
-  const ms = require("ms");
-  const süreMs = ms(süreArg);
-  if (!süreMs) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ Süre formatı geçersiz. Örnek: 10m, 1h, 30s")] });
-  }
-
-  try {
-    await member.roles.add(muteRole);
-    message.channel.send({ embeds: [new EmbedBuilder().setColor("Green").setDescription(`${member.user.tag} ${süreArg} boyunca mute’landı.`)] });
-
-    // Süre sonunda mute rolünü kaldır
-    setTimeout(async () => {
-      if (member.roles.cache.has(muteRole.id)) {
-        await member.roles.remove(muteRole);
-        message.channel.send({ embeds: [new EmbedBuilder().setColor("Green").setDescription(`${member.user.tag} artık unmute edildi (süre doldu).`)] });
-      }
-    }, süreMs);
-  } catch {
-    message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("Mute atamadım knk. Yetkim yetmiyor olabilir.")] });
-  }
-}
-
-// !unmute @kullanıcı komutu aynen kalsın:
-else if (command === "unmute") {
-  if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("🚫 Unmute yetkin yok knk!")] });
-  }
-
-  const member = message.mentions.members.first();
-  if (!member) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("❗ Kimi unmute edeceğimi etiketlemedin.")] });
-  }
-
-  const muteRole = message.guild.roles.cache.find(r => r.name === "Muted");
-  if (!muteRole) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription(`🚫 Sunucuda "Muted" rolü bulunamadı!`)] });
-  }
-
-  if (!member.roles.cache.has(muteRole.id)) {
-    return message.reply({ embeds: [new EmbedBuilder().setColor("Yellow").setDescription("Bu kullanıcı mute’lu değil!")] });
-  }
-
-  try {
-    await member.roles.remove(muteRole);
-    message.channel.send({ embeds: [new EmbedBuilder().setColor("Green").setDescription(`${member.user.tag} unmute edildi.`)] });
-  } catch {
-    message.reply({ embeds: [new EmbedBuilder().setColor("Red").setDescription("Unmute yapamadım knk. Yetkim yetmiyor olabilir.")] });
-  }
-}
-
-  
 });
 
 client.login(process.env.TOKEN);
