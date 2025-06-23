@@ -168,33 +168,77 @@ client.on("messageCreate", async (message) => {
 
   const sendHelpEmbed = () => {
     const yardımEmbed = new EmbedBuilder()
-      .setColor("Blue")
-      .setTitle("Komut Listesi")
+      .setColor("#FF6B6B")
+      .setTitle("🎮 Bot Komut Rehberi")
+      .setDescription("**Tüm komutlar ve açıklamaları kategorilere göre ayrılmıştır!**")
+      .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
       .addFields(
-        { name: "!ban @kullanıcı", value: "Kullanıcıyı banlar" },
-        { name: "!kick @kullanıcı", value: "Kullanıcıyı sunucudan atar" },
-        { name: "!temizle <sayı>", value: "Mesajları siler (1-100)" },
-        { name: "!ping", value: "Botun pingini gösterir" },
-        { name: "!avatar @kullanıcı", value: "Avatarını gösterir" },
-        { name: "!sunucubilgi", value: "Sunucu bilgisini gösterir" },
-        { name: "!roll <sayı>", value: "1 ile sayı arasında sayı atar" },
-        { name: "!yaz <metin>", value: "Bot metni yazar" },
-        { name: "!profil", value: "Profil bilgisi gösterir" },
-        { name: "!mute @kullanıcı 10m", value: "Belirli süreli mute atar" },
-        { name: "!unmute @kullanıcı", value: "Mute kaldırır" },
-        { name: "!level", value: "Level bilginizi gösterir" },
-        { name: "!levelkanal #kanal", value: "Level mesaj kanalını ayarlar" },
-        { name: "!bakiye", value: "Hunter Bucks bakiyenizi gösterir" },
-        { name: "!daily", value: "Günlük ödülünüzü alın" },
-        { name: "!work", value: "Çalışarak coin kazanın" },
-        { name: "!slot <miktar>", value: "Slot oyunu oynayın" },
-        { name: "!coinflip <miktar> <yazı/tura>", value: "Yazı tura oynayın" },
-        { name: "!dice <miktar> <1-6>", value: "Zar oyunu oynayın" },
-        { name: "!hunt", value: "Avlanarak coin kazanın" },
-        { name: "!fish", value: "Balık tutarak coin kazanın" },
-        { name: "!leaderboard", value: "Level ve coin sıralamasını gösterir" },
+        {
+          name: "🛡️ **MODERASYON KOMUTLARI**",
+          value: `
+          \`🔨 !ban @kullanıcı\` • Kullanıcıyı sunucudan banlar
+          \`👢 !kick @kullanıcı\` • Kullanıcıyı sunucudan atar
+          \`🧹 !temizle <1-100>\` • Belirtilen sayıda mesaj siler
+          \`🔇 !mute @kullanıcı <süre>\` • Kullanıcıyı belirli süre susturur
+          \`🔊 !unmute @kullanıcı\` • Kullanıcının susturmasını kaldırır
+          `,
+          inline: false
+        },
+        {
+          name: "🎉 **EĞLENCE KOMUTLARI**",
+          value: `
+          \`🎲 !roll <sayı>\` • 1 ile belirtilen sayı arasında zar atar
+          \`💬 !yaz <metin>\` • Bot belirtilen metni yazar
+          \`🖼️ !avatar [@kullanıcı]\` • Profil fotoğrafını gösterir
+          \`📊 !sunucubilgi\` • Sunucu hakkında bilgi verir
+          \`👤 !profil\` • Profil bilgilerinizi gösterir
+          `,
+          inline: false
+        },
+        {
+          name: "📈 **LEVEL SİSTEMİ**",
+          value: `
+          \`⭐ !level\` • Mevcut level ve XP bilginizi gösterir
+          \`📢 !levelkanal #kanal\` • Level atlama mesaj kanalını ayarlar
+          \`🏆 !leaderboard\` • Level ve coin sıralamasını gösterir
+          `,
+          inline: false
+        },
+        {
+          name: "💰 **HUNTER BUCKS EKONOMİ SİSTEMİ**",
+          value: `
+          \`💳 !bakiye\` • Hunter Bucks bakiyenizi gösterir
+          \`🎁 !daily\` • Günlük ödülünüzü alın (24 saat)
+          \`💼 !work\` • Çalışarak coin kazanın (1 saat)
+          `,
+          inline: false
+        },
+        {
+          name: "🎰 **KUMAR VE OYUNLAR**",
+          value: `
+          \`🎰 !slot <miktar>\` • Slot makinesi oyunu
+          \`🪙 !coinflip <miktar> <yazı/tura>\` • Yazı tura oyunu
+          \`🎲 !dice <miktar> <1-6>\` • Zar tahmin oyunu (5x kazanç)
+          \`🏹 !hunt\` • Avlanarak coin kazanın (%70 şans)
+          \`🎣 !fish\` • Balık tutarak coin kazanın (%80 şans)
+          `,
+          inline: false
+        },
+        {
+          name: "⚙️ **GENEL KOMUTLAR**",
+          value: `
+          \`🏓 !ping\` • Botun gecikme süresini gösterir
+          \`❓ !yardım\` • Bu yardım menüsünü gösterir
+          `,
+          inline: false
+        }
       )
-      .setFooter({ text: "Bot Yardım Menüsü" });
+      .setFooter({ 
+        text: `${message.guild.name} • Yapımcı: axel_ey 👑`, 
+        iconURL: message.guild.iconURL({ dynamic: true }) 
+      })
+      .setTimestamp();
+    
     message.channel.send({ embeds: [yardımEmbed] });
   };
 
