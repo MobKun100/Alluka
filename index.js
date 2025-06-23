@@ -192,6 +192,7 @@ client.on("messageCreate", async (message) => {
         { name: "!dice <miktar> <1-6>", value: "Zar oyunu oynayın" },
         { name: "!hunt", value: "Avlanarak coin kazanın" },
         { name: "!fish", value: "Balık tutarak coin kazanın" },
+        { name: "!leaderboard", value: "Level ve coin sıralamasını gösterir" },
       )
       .setFooter({ text: "Bot Yardım Menüsü" });
     message.channel.send({ embeds: [yardımEmbed] });
@@ -496,6 +497,89 @@ client.on("messageCreate", async (message) => {
         
       return message.channel.send({ embeds: [embed] });
     }
+  }
+
+  if (command === "leaderboard" || command === "lb") {
+    const guildId = message.guild.id;
+    
+    // Level leaderboard
+    const levelData = [];
+    for (const [userKey, data] of userLevels.entries()) {
+      if (userKey.startsWith(guildId + "_")) {
+        const userId = userKey.split("_")[1];
+        try {
+          const user = await client.users.fetch(userId);
+          levelData.push({
+            username: user.username,
+            level: data.level,
+            xp: data.xp
+          });
+        } catch (error) {
+          // Kullanıcı bulunamazsa geç
+        }
+      }
+    }
+    
+    // Coin leaderboard
+    const coinData = [];
+    for (const [userKey, coins] of userCoins.entries()) {
+      if (userKey.startsWith(guildId + "_")) {
+        const userId = userKey.split("_")[1];
+        try {
+          const user = await client.users.fetch(userId);
+          coinData.push({
+            username: user.username,
+            coins: coins
+          });
+        } catch (error) {
+          // Kullanıcı bulunamazsa geç
+        }
+      }
+    }
+    
+    // Sırala
+    levelData.sort((a, b) => {
+      if (b.level !== a.level) return b.level - a.level;
+      return b.xp - a.xp;
+    });
+    
+    coinData.sort((a, b) => b.coins - a.coins);
+    
+    // Level sıralaması
+    let levelText = "";
+    for (let i = 0; i < Math.min(10, levelData.length); i++) {
+      const user = levelData[i];
+      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+      levelText += `${medal} **${user.username}** - Level ${user.level} (${user.xp} XP)\n`;
+    }
+    
+    // Coin sıralaması
+    let coinText = "";
+    for (let i = 0; i < Math.min(10, coinData.length); i++) {
+      const user = coinData[i];
+      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+      coinText += `${medal} **${user.username}** - ${formatCoins(user.coins)}\n`;
+    }
+    
+    const embed = new EmbedBuilder()
+      .setColor("Gold")
+      .setTitle("🏆 Liderlik Tablosu")
+      .addFields(
+        { 
+          name: "📊 Level Sıralaması", 
+          value: levelText || "Henüz veri yok", 
+          inline: false 
+        },
+        { 
+          name: "💰 Hunter Bucks Sıralaması", 
+          value: coinText || "Henüz veri yok", 
+          inline: false 
+        }
+      )
+      .setFooter({ text: `${message.guild.name} sunucusu` })
+      .setTimestamp();
+      
+    return message.channel.send({ embeds: [embed] });
   }
 
   if (command === "ping") {
