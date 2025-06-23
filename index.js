@@ -18,14 +18,61 @@ const client = new Client({
 
 const prefix = "!";
 
+const fs = require('fs');
+const path = require('path');
+
+// Veri dosyalarının yolları
+const dataDir = './data';
+const userLevelsFile = path.join(dataDir, 'userLevels.json');
+const levelChannelsFile = path.join(dataDir, 'levelChannels.json');
+const userCoinsFile = path.join(dataDir, 'userCoins.json');
+const dailyCooldownsFile = path.join(dataDir, 'dailyCooldowns.json');
+const workCooldownsFile = path.join(dataDir, 'workCooldowns.json');
+
+// Data klasörünü oluştur
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir);
+}
+
+// Veri yükleme fonksiyonu
+function loadData(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf8');
+      return new Map(JSON.parse(data));
+    }
+  } catch (error) {
+    console.error(`Veri yüklenirken hata: ${filePath}`, error);
+  }
+  return new Map();
+}
+
+// Veri kaydetme fonksiyonu
+function saveData(filePath, map) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify([...map]));
+  } catch (error) {
+    console.error(`Veri kaydedilirken hata: ${filePath}`, error);
+  }
+}
+
 // Level sistemi için veri
-const userLevels = new Map();
-const levelChannels = new Map(); // Sunucu ID -> Kanal ID
+const userLevels = loadData(userLevelsFile);
+const levelChannels = loadData(levelChannelsFile);
 
 // Hunter Bucks coin sistemi
-const userCoins = new Map();
-const dailyCooldowns = new Map();
-const workCooldowns = new Map();
+const userCoins = loadData(userCoinsFile);
+const dailyCooldowns = loadData(dailyCooldownsFile);
+const workCooldowns = loadData(workCooldownsFile);
+
+// Periyodik kaydetme (her 30 saniyede bir)
+setInterval(() => {
+  saveData(userLevelsFile, userLevels);
+  saveData(levelChannelsFile, levelChannels);
+  saveData(userCoinsFile, userCoins);
+  saveData(dailyCooldownsFile, dailyCooldowns);
+  saveData(workCooldownsFile, workCooldowns);
+}, 30000);
 
 const express = require("express");
 const app = express();
@@ -41,6 +88,30 @@ app.listen(port, () => {
 
 client.on("ready", () => {
   console.log(`${client.user.tag} olarak giriş yapıldı!`);
+  console.log("Veriler başarıyla yüklendi!");
+});
+
+// Bot kapanırken verileri kaydet
+process.on('SIGINT', () => {
+  console.log('Bot kapatılıyor, veriler kaydediliyor...');
+  saveData(userLevelsFile, userLevels);
+  saveData(levelChannelsFile, levelChannels);
+  saveData(userCoinsFile, userCoins);
+  saveData(dailyCooldownsFile, dailyCooldowns);
+  saveData(workCooldownsFile, workCooldowns);
+  console.log('Veriler kaydedildi!');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Bot kapatılıyor, veriler kaydediliyor...');
+  saveData(userLevelsFile, userLevels);
+  saveData(levelChannelsFile, levelChannels);
+  saveData(userCoinsFile, userCoins);
+  saveData(dailyCooldownsFile, dailyCooldowns);
+  saveData(workCooldownsFile, workCooldowns);
+  console.log('Veriler kaydedildi!');
+  process.exit(0);
 });
 
 // XP hesaplama ve level atlatma fonksiyonu
