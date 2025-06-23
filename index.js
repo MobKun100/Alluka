@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 const {
   Client,
@@ -17,6 +18,10 @@ const client = new Client({
 
 const prefix = "!";
 
+// Level sistemi için veri
+const userLevels = new Map();
+const levelChannels = new Map(); // Sunucu ID -> Kanal ID
+
 const express = require("express");
 const app = express();
 const port = 5000;
@@ -33,8 +38,58 @@ client.on("ready", () => {
   console.log(`${client.user.tag} olarak giriş yapıldı!`);
 });
 
+// XP hesaplama ve level atlatma fonksiyonu
+function addXP(userId, guildId) {
+  const userKey = `${guildId}_${userId}`;
+  
+  if (!userLevels.has(userKey)) {
+    userLevels.set(userKey, { xp: 0, level: 1 });
+  }
+  
+  const userData = userLevels.get(userKey);
+  userData.xp += Math.floor(Math.random() * 15) + 5; // 5-20 XP arası
+  
+  const requiredXP = userData.level * 100;
+  
+  if (userData.xp >= requiredXP) {
+    userData.level++;
+    userData.xp = 0;
+    return true; // Level atladı
+  }
+  
+  return false; // Level atlamadı
+}
+
+// Level atlama mesajı gönderme
+function sendLevelUpMessage(member, newLevel) {
+  const guildId = member.guild.id;
+  const levelChannelId = levelChannels.get(guildId);
+  
+  if (!levelChannelId) return;
+  
+  const channel = member.guild.channels.cache.get(levelChannelId);
+  if (!channel) return;
+  
+  const embed = new EmbedBuilder()
+    .setColor("Gold")
+    .setTitle("🎉 Level Atladı!")
+    .setDescription(`${member.user.tag} artık **Level ${newLevel}**!`)
+    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+    .setTimestamp();
+    
+  channel.send({ embeds: [embed] });
+}
+
 client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.guild) return;
+
+  // Level sistemi - Her mesajda XP ver
+  const leveledUp = addXP(message.author.id, message.guild.id);
+  if (leveledUp) {
+    const userKey = `${message.guild.id}_${message.author.id}`;
+    const newLevel = userLevels.get(userKey).level;
+    sendLevelUpMessage(message.member, newLevel);
+  }
 
   // Oto cevaplar
   if (!message.content.startsWith(prefix)) {
@@ -68,10 +123,53 @@ client.on("messageCreate", async (message) => {
         { name: "!profil", value: "Profil bilgisi gösterir" },
         { name: "!mute @kullanıcı 10m", value: "Belirli süreli mute atar" },
         { name: "!unmute @kullanıcı", value: "Mute kaldırır" },
+        { name: "!level", value: "Level bilginizi gösterir" },
+        { name: "!levelkanal #kanal", value: "Level mesaj kanalını ayarlar" },
       )
       .setFooter({ text: "Bot Yardım Menüsü" });
     message.channel.send({ embeds: [yardımEmbed] });
   };
+
+  if (command === "level") {
+    const userKey = `${message.guild.id}_${message.author.id}`;
+    const userData = userLevels.get(userKey) || { xp: 0, level: 1 };
+    const requiredXP = userData.level * 100;
+    
+    const embed = new EmbedBuilder()
+      .setColor("Purple")
+      .setTitle("📊 Level Bilgisi")
+      .setDescription(`${message.author.tag} kullanıcısının seviyesi`)
+      .addFields(
+        { name: "Level", value: `${userData.level}`, inline: true },
+        { name: "XP", value: `${userData.xp}/${requiredXP}`, inline: true },
+        { name: "Eksik XP", value: `${requiredXP - userData.xp}`, inline: true }
+      )
+      .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+      .setTimestamp();
+      
+    return message.channel.send({ embeds: [embed] });
+  }
+
+  if (command === "levelkanal") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+      return message.reply("🚫 Kanal yönetme yetkin yok!");
+    }
+    
+    const channel = message.mentions.channels.first();
+    if (!channel) {
+      return message.reply("Bir kanal etiketle! Örnek: `!levelkanal #genel`");
+    }
+    
+    levelChannels.set(message.guild.id, channel.id);
+    
+    const embed = new EmbedBuilder()
+      .setColor("Green")
+      .setTitle("✅ Level Kanalı Ayarlandı")
+      .setDescription(`Level atlama mesajları artık ${channel} kanalına gönderilecek!`)
+      .setTimestamp();
+      
+    return message.channel.send({ embeds: [embed] });
+  }
 
   if (command === "ping") {
     const ping = Date.now() - message.createdTimestamp;
@@ -163,12 +261,17 @@ client.on("messageCreate", async (message) => {
 
   if (command === "profil") {
     const member = message.member;
+    const userKey = `${message.guild.id}_${member.id}`;
+    const userData = userLevels.get(userKey) || { xp: 0, level: 1 };
+    
     const embed = new EmbedBuilder()
       .setColor("Blue")
       .setTitle("Profil Bilgisi")
       .addFields(
         { name: "Kullanıcı", value: member.user.tag, inline: true },
         { name: "ID", value: member.id, inline: true },
+        { name: "Level", value: `${userData.level}`, inline: true },
+        { name: "XP", value: `${userData.xp}`, inline: true },
         {
           name: "Hesap Oluşturma",
           value: member.user.createdAt.toDateString(),
@@ -197,7 +300,7 @@ client.on("messageCreate", async (message) => {
     const muteRole = message.guild.roles.cache.find((r) => r.name === "Muted");
     if (!muteRole) return message.reply("'Muted' rolü bulunamadı.");
     await member.roles.add(muteRole);
-    message.channel.send(`${member.user.tag} ${süreArg} boyunca mute’lendi.`);
+    message.channel.send(`${member.user.tag} ${süreArg} boyunca mute'lendi.`);
     setTimeout(async () => {
       await member.roles.remove(muteRole);
       message.channel.send(`${member.user.tag} artık mute değil.`);
