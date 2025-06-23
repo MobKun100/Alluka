@@ -20,6 +20,7 @@ const prefix = "!";
 
 const fs = require('fs');
 const path = require('path');
+const { createCanvas, loadImage } = require('canvas');
 
 // Veri dosyalarının yolları
 const dataDir = './data';
@@ -263,6 +264,7 @@ client.on("messageCreate", async (message) => {
           \`🖼️ !avatar [@kullanıcı]\` • Profil fotoğrafını gösterir
           \`📊 !sunucubilgi\` • Sunucu hakkında bilgi verir
           \`👤 !profil\` • Profil bilgilerinizi gösterir
+          \`💕 !ship @kullanıcı\` • İki kullanıcı arasındaki uyumluluğu gösterir
           `,
           inline: false
         },
@@ -610,6 +612,133 @@ client.on("messageCreate", async (message) => {
         .setDescription("Hiçbir balık tutamadın! Daha sonra tekrar dene.")
         .setTimestamp();
         
+      return message.channel.send({ embeds: [embed] });
+    }
+  }
+
+  if (command === "ship") {
+    const mentionedUser = message.mentions.users.first();
+    if (!mentionedUser) {
+      return message.reply("Kimi ile shipleyelim? Birini etiketle! Örnek: `!ship @kullanıcı`");
+    }
+    
+    if (mentionedUser.id === message.author.id) {
+      return message.reply("Kendini kendine shipliyemezsin! 😅");
+    }
+    
+    // Ship yüzdesi hesapla (sabit olsun ki aynı çift hep aynı sonucu alsın)
+    const user1Id = BigInt(message.author.id);
+    const user2Id = BigInt(mentionedUser.id);
+    const combined = user1Id + user2Id;
+    const shipPercentage = Number(combined % 101n); // 0-100 arası
+    
+    // Görsel oluştur
+    try {
+      const canvas = createCanvas(800, 400);
+      const ctx = canvas.getContext('2d');
+      
+      // Arka plan gradient
+      const gradient = ctx.createLinearGradient(0, 0, 800, 400);
+      if (shipPercentage >= 80) {
+        gradient.addColorStop(0, '#ff69b4'); // Pembe
+        gradient.addColorStop(1, '#ff1493'); // Koyu pembe
+      } else if (shipPercentage >= 60) {
+        gradient.addColorStop(0, '#ffa500'); // Turuncu
+        gradient.addColorStop(1, '#ff6347'); // Kırmızı-turuncu
+      } else if (shipPercentage >= 40) {
+        gradient.addColorStop(0, '#ffff00'); // Sarı
+        gradient.addColorStop(1, '#ffa500'); // Turuncu
+      } else {
+        gradient.addColorStop(0, '#87ceeb'); // Açık mavi
+        gradient.addColorStop(1, '#4682b4'); // Çelik mavisi
+      }
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 800, 400);
+      
+      // Kalp şekli çiz
+      const heartSize = 80;
+      const heartX = 400;
+      const heartY = 150;
+      
+      ctx.fillStyle = shipPercentage >= 70 ? '#ff0000' : '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(heartX, heartY + heartSize / 4);
+      for (let i = 0; i < 2; i++) {
+        const x = heartX + (i === 0 ? -1 : 1) * heartSize / 4;
+        const y = heartY;
+        ctx.bezierCurveTo(x, y - heartSize / 4, x - heartSize / 2, y + heartSize / 8, heartX, heartY + heartSize);
+      }
+      ctx.fill();
+      
+      // Kullanıcı isimleri
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px Arial';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      
+      const user1Name = message.author.username;
+      const user2Name = mentionedUser.username;
+      
+      ctx.strokeText(`${user1Name} ❤️ ${user2Name}`, 400, 80);
+      ctx.fillText(`${user1Name} ❤️ ${user2Name}`, 400, 80);
+      
+      // Yüzde metni
+      ctx.font = 'bold 48px Arial';
+      ctx.strokeText(`%${shipPercentage}`, 400, 300);
+      ctx.fillText(`%${shipPercentage}`, 400, 300);
+      
+      // Ship durumu metni
+      let shipStatus = "";
+      if (shipPercentage >= 90) shipStatus = "💖 Mükemmel Eşleşme!";
+      else if (shipPercentage >= 80) shipStatus = "💕 Çok Uyumlu!";
+      else if (shipPercentage >= 70) shipStatus = "💗 İyi Eşleşme!";
+      else if (shipPercentage >= 60) shipStatus = "💓 Fena Değil!";
+      else if (shipPercentage >= 40) shipStatus = "💛 Orta Düzey";
+      else if (shipPercentage >= 20) shipStatus = "💙 Zayıf Bağ";
+      else shipStatus = "💔 Uyumsuz";
+      
+      ctx.font = 'bold 24px Arial';
+      ctx.strokeText(shipStatus, 400, 350);
+      ctx.fillText(shipStatus, 400, 350);
+      
+      // Resmi buffer'a çevir
+      const buffer = canvas.toBuffer('image/png');
+      
+      const embed = new EmbedBuilder()
+        .setColor(shipPercentage >= 70 ? "Red" : shipPercentage >= 40 ? "Orange" : "Blue")
+        .setTitle("💕 Ship Sistemi")
+        .setDescription(`${message.author.tag} ve ${mentionedUser.tag} arasındaki uyumluluk: **%${shipPercentage}**`)
+        .setImage('attachment://ship.png')
+        .setFooter({ text: "Ship sonuçları tamamen rastgeledir!" })
+        .setTimestamp();
+      
+      return message.channel.send({ 
+        embeds: [embed], 
+        files: [{ attachment: buffer, name: 'ship.png' }] 
+      });
+      
+    } catch (error) {
+      console.error('Canvas hatası:', error);
+      
+      // Canvas hatası durumunda basit embed gönder
+      let shipStatus = "";
+      if (shipPercentage >= 90) shipStatus = "💖 Mükemmel Eşleşme!";
+      else if (shipPercentage >= 80) shipStatus = "💕 Çok Uyumlu!";
+      else if (shipPercentage >= 70) shipStatus = "💗 İyi Eşleşme!";
+      else if (shipPercentage >= 60) shipStatus = "💓 Fena Değil!";
+      else if (shipPercentage >= 40) shipStatus = "💛 Orta Düzey";
+      else if (shipPercentage >= 20) shipStatus = "💙 Zayıf Bağ";
+      else shipStatus = "💔 Uyumsuz";
+      
+      const embed = new EmbedBuilder()
+        .setColor(shipPercentage >= 70 ? "Red" : shipPercentage >= 40 ? "Orange" : "Blue")
+        .setTitle("💕 Ship Sistemi")
+        .setDescription(`${message.author.tag} ❤️ ${mentionedUser.tag}\n\n**Uyumluluk: %${shipPercentage}**\n${shipStatus}`)
+        .setFooter({ text: "Ship sonuçları tamamen rastgeledir!" })
+        .setTimestamp();
+      
       return message.channel.send({ embeds: [embed] });
     }
   }
