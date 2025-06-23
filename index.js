@@ -637,81 +637,141 @@ client.on("messageCreate", async (message) => {
       const canvas = createCanvas(800, 400);
       const ctx = canvas.getContext('2d');
       
-      // Arka plan gradient
+      // Hunter x Hunter temalı arka plan gradient
       const gradient = ctx.createLinearGradient(0, 0, 800, 400);
       if (shipPercentage >= 80) {
-        gradient.addColorStop(0, '#ff69b4'); // Pembe
-        gradient.addColorStop(1, '#ff1493'); // Koyu pembe
+        // Yüksek uyumluluk - Nen aura teması (parlak yeşil-altın)
+        gradient.addColorStop(0, '#00ff7f'); // Parlak yeşil
+        gradient.addColorStop(0.5, '#ffd700'); // Altın
+        gradient.addColorStop(1, '#ff6347'); // Coral
       } else if (shipPercentage >= 60) {
-        gradient.addColorStop(0, '#ffa500'); // Turuncu
-        gradient.addColorStop(1, '#ff6347'); // Kırmızı-turuncu
+        // Orta uyumluluk - Gon teması (yeşil-turuncu)
+        gradient.addColorStop(0, '#32cd32'); // Yeşil
+        gradient.addColorStop(1, '#ff8c00'); // Turuncu
       } else if (shipPercentage >= 40) {
-        gradient.addColorStop(0, '#ffff00'); // Sarı
-        gradient.addColorStop(1, '#ffa500'); // Turuncu
+        // Düşük uyumluluk - Killua teması (mavi-gümüş)
+        gradient.addColorStop(0, '#4169e1'); // Royal blue
+        gradient.addColorStop(1, '#c0c0c0'); // Gümüş
       } else {
-        gradient.addColorStop(0, '#87ceeb'); // Açık mavi
-        gradient.addColorStop(1, '#4682b4'); // Çelik mavisi
+        // Çok düşük - Kurapika teması (kırmızı-siyah)
+        gradient.addColorStop(0, '#2f4f4f'); // Koyu gri
+        gradient.addColorStop(1, '#8b0000'); // Koyu kırmızı
       }
       
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 800, 400);
       
-      // Kalp şekli çiz
-      const heartSize = 80;
+      // Hunter x Hunter logosu çerçeve efekti
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(10, 10, 780, 380);
+      
+      // Nen aura efekti (uyumluluk yüzdesine göre)
+      if (shipPercentage >= 70) {
+        ctx.shadowColor = '#00ff7f';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      }
+      
+      // Hunter license kartı benzeri kalp
+      const heartSize = 100;
       const heartX = 400;
       const heartY = 150;
       
-      ctx.fillStyle = shipPercentage >= 70 ? '#ff0000' : '#ffffff';
+      // Kalp arka planı (Hunter license kartı rengi)
+      ctx.fillStyle = shipPercentage >= 70 ? '#ffd700' : '#c0c0c0';
+      ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.moveTo(heartX, heartY + heartSize / 4);
-      for (let i = 0; i < 2; i++) {
-        const x = heartX + (i === 0 ? -1 : 1) * heartSize / 4;
-        const y = heartY;
-        ctx.bezierCurveTo(x, y - heartSize / 4, x - heartSize / 2, y + heartSize / 8, heartX, heartY + heartSize);
-      }
+      ctx.roundRect(heartX - 60, heartY - 40, 120, 80, 10);
       ctx.fill();
       
-      // Kullanıcı isimleri
+      // Kalp içindeki Hunter x Hunter sembolu
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = shipPercentage >= 70 ? '#ff0000' : '#4169e1';
+      ctx.font = 'bold 40px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('H×H', heartX, heartY + 10);
+      
+      // Kullanıcı isimleri (anime stil)
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 32px Arial';
       ctx.textAlign = 'center';
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       
       const user1Name = message.author.username;
       const user2Name = mentionedUser.username;
       
-      ctx.strokeText(`${user1Name} ❤️ ${user2Name}`, 400, 80);
-      ctx.fillText(`${user1Name} ❤️ ${user2Name}`, 400, 80);
+      // Anime stil yazı efekti
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 5;
+      ctx.strokeText(`${user1Name} ⚡ ${user2Name}`, 400, 80);
+      ctx.fillText(`${user1Name} ⚡ ${user2Name}`, 400, 80);
       
-      // Yüzde metni
-      ctx.font = 'bold 48px Arial';
-      ctx.strokeText(`%${shipPercentage}`, 400, 300);
-      ctx.fillText(`%${shipPercentage}`, 400, 300);
+      // Uyumluluk yüzdesi (büyük ve gösterişli)
+      ctx.shadowBlur = 10;
+      ctx.font = 'bold 60px Arial';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 4;
       
-      // Ship durumu metni
+      // Yüzde rengini uyumluluğa göre ayarla
+      if (shipPercentage >= 80) ctx.fillStyle = '#00ff7f'; // Parlak yeşil
+      else if (shipPercentage >= 60) ctx.fillStyle = '#ffd700'; // Altın
+      else if (shipPercentage >= 40) ctx.fillStyle = '#4169e1'; // Mavi
+      else ctx.fillStyle = '#ff4500'; // Kırmızı
+      
+      ctx.strokeText(`${shipPercentage}%`, 400, 300);
+      ctx.fillText(`${shipPercentage}%`, 400, 300);
+      
+      // Hunter x Hunter karakterlerine göre ship durumu
       let shipStatus = "";
-      if (shipPercentage >= 90) shipStatus = "💖 Mükemmel Eşleşme!";
-      else if (shipPercentage >= 80) shipStatus = "💕 Çok Uyumlu!";
-      else if (shipPercentage >= 70) shipStatus = "💗 İyi Eşleşme!";
-      else if (shipPercentage >= 60) shipStatus = "💓 Fena Değil!";
-      else if (shipPercentage >= 40) shipStatus = "💛 Orta Düzey";
-      else if (shipPercentage >= 20) shipStatus = "💙 Zayıf Bağ";
-      else shipStatus = "💔 Uyumsuz";
+      let shipEmoji = "";
+      if (shipPercentage >= 90) {
+        shipStatus = "Gon & Killua Seviyesi! 🔥";
+        shipEmoji = "⚡";
+      } else if (shipPercentage >= 80) {
+        shipStatus = "Kurapika & Leorio Uyumu! ✨";
+        shipEmoji = "💫";
+      } else if (shipPercentage >= 70) {
+        shipStatus = "Hunter Sınavı Takımı! 🎯";
+        shipEmoji = "🎯";
+      } else if (shipPercentage >= 60) {
+        shipStatus = "Phantom Troupe Üyesi! 🕷️";
+        shipEmoji = "🕷️";
+      } else if (shipPercentage >= 40) {
+        shipStatus = "Nen Öğrenciniz! 💪";
+        shipEmoji = "💪";
+      } else if (shipPercentage >= 20) {
+        shipStatus = "Sadece Sıradan İnsan... 😅";
+        shipEmoji = "😅";
+      } else {
+        shipStatus = "Hisoka'nın İlgisini Çekmez 🃏";
+        shipEmoji = "🃏";
+      }
       
       ctx.font = 'bold 24px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowBlur = 5;
       ctx.strokeText(shipStatus, 400, 350);
       ctx.fillText(shipStatus, 400, 350);
       
       // Resmi buffer'a çevir
       const buffer = canvas.toBuffer('image/png');
       
+      // Hunter x Hunter karakterlerine göre embed rengi
+      let embedColor = "Blue";
+      if (shipPercentage >= 80) embedColor = "Green"; // Gon'un rengi
+      else if (shipPercentage >= 60) embedColor = "Gold"; // Hunter lisansı
+      else if (shipPercentage >= 40) embedColor = "Purple"; // Kurapika'nın gözleri
+      else embedColor = "Red"; // Kırmızı tehlike
+      
       const embed = new EmbedBuilder()
-        .setColor(shipPercentage >= 70 ? "Red" : shipPercentage >= 40 ? "Orange" : "Blue")
-        .setTitle("💕 Ship Sistemi")
-        .setDescription(`${message.author.tag} ve ${mentionedUser.tag} arasındaki uyumluluk: **%${shipPercentage}**`)
+        .setColor(embedColor)
+        .setTitle("⚡ Hunter x Hunter Ship Sistemi 🎯")
+        .setDescription(`**${message.author.tag}** ve **${mentionedUser.tag}** arasındaki Hunter uyumluluğu analiz edildi!\n\n**Uyumluluk Skoru: %${shipPercentage}** ${shipEmoji}`)
         .setImage('attachment://ship.png')
-        .setFooter({ text: "Ship sonuçları tamamen rastgeledir!" })
+        .setFooter({ text: "Hunter Association onaylı ship analizi! 🏆" })
         .setTimestamp();
       
       return message.channel.send({ 
@@ -732,11 +792,27 @@ client.on("messageCreate", async (message) => {
       else if (shipPercentage >= 20) shipStatus = "💙 Zayıf Bağ";
       else shipStatus = "💔 Uyumsuz";
       
+      // Hunter x Hunter karakterlerine göre ship durumu (fallback)
+      let shipStatus = "";
+      if (shipPercentage >= 90) shipStatus = "⚡ Gon & Killua Seviyesi!";
+      else if (shipPercentage >= 80) shipStatus = "✨ Kurapika & Leorio Uyumu!";
+      else if (shipPercentage >= 70) shipStatus = "🎯 Hunter Sınavı Takımı!";
+      else if (shipPercentage >= 60) shipStatus = "🕷️ Phantom Troupe Üyesi!";
+      else if (shipPercentage >= 40) shipStatus = "💪 Nen Öğrenciniz!";
+      else if (shipPercentage >= 20) shipStatus = "😅 Sadece Sıradan İnsan...";
+      else shipStatus = "🃏 Hisoka'nın İlgisini Çekmez";
+      
+      let embedColor = "Blue";
+      if (shipPercentage >= 80) embedColor = "Green";
+      else if (shipPercentage >= 60) embedColor = "Gold";
+      else if (shipPercentage >= 40) embedColor = "Purple";
+      else embedColor = "Red";
+      
       const embed = new EmbedBuilder()
-        .setColor(shipPercentage >= 70 ? "Red" : shipPercentage >= 40 ? "Orange" : "Blue")
-        .setTitle("💕 Ship Sistemi")
-        .setDescription(`${message.author.tag} ❤️ ${mentionedUser.tag}\n\n**Uyumluluk: %${shipPercentage}**\n${shipStatus}`)
-        .setFooter({ text: "Ship sonuçları tamamen rastgeledir!" })
+        .setColor(embedColor)
+        .setTitle("⚡ Hunter x Hunter Ship Sistemi 🎯")
+        .setDescription(`**${message.author.tag} ⚡ ${mentionedUser.tag}**\n\n**Hunter Uyumluluğu: %${shipPercentage}**\n${shipStatus}`)
+        .setFooter({ text: "Hunter Association onaylı ship analizi! 🏆" })
         .setTimestamp();
       
       return message.channel.send({ embeds: [embed] });
