@@ -652,9 +652,18 @@ client.on("messageCreate", async (message) => {
     const miktar = parseInt(args[0]);
     if (!miktar || miktar < 1 || miktar > 100)
       return message.reply("1-100 arası sayı gir.");
-    await message.channel.bulkDelete(miktar + 1, true);
-    const msg = await message.channel.send(`✅ ${miktar} mesaj silindi.`);
-    setTimeout(() => msg.delete(), 3000);
+    
+    try {
+      await message.channel.bulkDelete(miktar + 1, true);
+      const msg = await message.channel.send(`✅ ${miktar} mesaj silindi.`);
+      setTimeout(() => {
+        if (msg.deletable) {
+          msg.delete().catch(() => {});
+        }
+      }, 3000);
+    } catch (error) {
+      return message.reply("Mesajları silerken bir hata oluştu.");
+    }
   }
 
   if (command === "roll") {
