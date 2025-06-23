@@ -782,17 +782,7 @@ client.on("messageCreate", async (message) => {
     } catch (error) {
       console.error('Canvas hatası:', error);
       
-      // Canvas hatası durumunda basit embed gönder
-      let shipStatus = "";
-      if (shipPercentage >= 90) shipStatus = "💖 Mükemmel Eşleşme!";
-      else if (shipPercentage >= 80) shipStatus = "💕 Çok Uyumlu!";
-      else if (shipPercentage >= 70) shipStatus = "💗 İyi Eşleşme!";
-      else if (shipPercentage >= 60) shipStatus = "💓 Fena Değil!";
-      else if (shipPercentage >= 40) shipStatus = "💛 Orta Düzey";
-      else if (shipPercentage >= 20) shipStatus = "💙 Zayıf Bağ";
-      else shipStatus = "💔 Uyumsuz";
-      
-      // Hunter x Hunter karakterlerine göre ship durumu (fallback)
+      // Canvas hatası durumunda Hunter x Hunter temalı basit embed gönder
       let shipStatus = "";
       if (shipPercentage >= 90) shipStatus = "⚡ Gon & Killua Seviyesi!";
       else if (shipPercentage >= 80) shipStatus = "✨ Kurapika & Leorio Uyumu!";
