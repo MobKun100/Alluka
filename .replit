@@ -8,7 +8,6 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Start Bot"
 
 [[workflows.workflow]]
 name = "Start Bot"
@@ -18,3 +17,6 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node index.js"
+
+[agent]
+expertMode = true
