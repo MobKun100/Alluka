@@ -400,8 +400,6 @@ client.on("messageCreate", async (message) => {
             "`a!dice <miktar> <1-6>` • Zar tahmin (5x)",
             "`a!hunt` • Avlanma (%70 şans)",
             "`a!fish` • Balık tutma (%80 şans)",
-            "`a!ship @üye` • Uyum ölçer",
-            "`a!roll [max]` • Zar atar",
           ].join("\n"), inline: false,
         },
         {
@@ -894,24 +892,6 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [new EmbedBuilder().setColor("Gray").setTitle("🎣 Balık Tutma Başarısız!").setDescription("Hiçbir balık tutamadın!").setTimestamp()] });
   }
 
-  if (command === "ship") {
-    const mentioned = message.mentions.users.first();
-    if (!mentioned) return message.reply("Birini etiketle! Örnek: `a!ship @kullanıcı`");
-    if (mentioned.id === message.author.id) return message.reply("Kendini kendine shipliyemezsin! 😅");
-    const pct = Math.floor(Math.random() * 101);
-    const status = pct>=90?"💖 Mükemmel!":pct>=80?"💕 Çok Uyumlu!":pct>=70?"💗 İyi!":pct>=60?"💓 Fena Değil":pct>=40?"💛 Orta":pct>=20?"💙 Zayıf":"💔 Uyumsuz";
-    return message.channel.send({ embeds: [
-      new EmbedBuilder().setColor("Pink").setTitle("💑 Ship Sonucu")
-        .setDescription(`**${message.author.username}** ❤️ **${mentioned.username}**\n\n**${pct}%** — ${status}`)
-        .setTimestamp(),
-    ]});
-  }
-
-  if (command === "roll") {
-    const max = parseInt(args[0]) || 100;
-    if (max < 1) return message.reply("Sayı en az 1 olmalı.");
-    return message.channel.send(`🎲 Attığın sayı: **${Math.floor(Math.random() * max) + 1}** (1-${max})`);
-  }
 
   if (command === "yaz") {
     const text = args.join(" ");
