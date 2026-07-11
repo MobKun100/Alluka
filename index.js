@@ -1004,14 +1004,11 @@ client.on("messageCreate", async (message) => {
 
   // ── GİZLİ: KANAL GİR ─────────────────────────────────────────────────────────
   if (command === "kanalagir") {
-    if (message.author.id !== message.guild.ownerId) return;
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
 
-    const channelId = args[0];
-    if (!channelId) return message.reply("Kanal ID'si gir. Örnek: `a!kanalagir 123456789`");
-    const voiceChannel = message.guild.channels.cache.get(channelId);
-
-    if (!voiceChannel || voiceChannel.type !== 2)
-      return message.reply("Geçerli bir ses kanalı ID'si gir. (Kanal bulunamadı veya ses kanalı değil)");
+    const voiceChannel = message.member.voice.channel;
+    if (!voiceChannel)
+      return message.reply("Önce bir ses kanalına gir, sonra bu komutu kullan.");
 
     try {
       const connection = joinVoiceChannel({
