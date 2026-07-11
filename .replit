@@ -8,15 +8,28 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Start Bot"
-author = 27746378
+author = "agent"
 mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node index.js"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start Bot"
 
 [agent]
 expertMode = true
