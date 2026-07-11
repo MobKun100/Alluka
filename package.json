@@ -10,11 +10,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@discordjs/voice": "^0.18.0",
     "canvas": "^3.1.1",
     "canvaz": "^1.0.0-alpha",
     "discord.js": "^14.20.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "ms": "^2.1.3"
+    "ms": "^2.1.3",
+    "tweetnacl": "^1.0.3"
   }
 }
