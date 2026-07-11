@@ -116,27 +116,6 @@ process.on("SIGTERM", () => {
 // XP hesaplama ve level atlatma fonksiyonu
 function addXP(userId, guildId) {
   const userKey = `${guildId}_${userId}`;
-
-  if (!userLevels.has(userKey)) {
-    userLevels.set(userKey, { xp: 0, level: 1 });
-  }
-
-  const userData = userLevels.get(userKey);
-  userData.xp += Math.floor(Math.random() * 15) + 5; // 5-20 XP arası
-
-  const requiredXP = userData.level * 100;
-
-  if (userData.xp >= requiredXP) {
-    userData.level++;
-    userData.xp = 0;
-    return true; // Level atladı
-  }
-
-  return false; // Level atlamadı
-}
-
-function addXP(userId, guildId) {
-  const userKey = `${guildId}_${userId}`;
   if (!userLevels.has(userKey)) {
     userLevels.set(userKey, { xp: 0, level: 1 });
   }
@@ -203,8 +182,6 @@ function addXP(userId, guildId) {
     // Seviye ödülünü ekle
     const reward = rewards[userData.level] || 0; // Eğer seviye 50'den yüksekse ödül yok
     addCoins(userId, guildId, reward);
-    // Level atladıktan sonra mesaj gönder
-    sendLevelUpMessage(userId, userData.level);
     return true; // Level atladı
   }
   return false; // Level atlamadı
