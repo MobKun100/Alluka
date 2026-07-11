@@ -5,6 +5,7 @@ const {
   PermissionsBitField,
   EmbedBuilder,
 } = require("discord.js");
+const { joinVoiceChannel, VoiceConnectionStatus } = require("@discordjs/voice");
 
 const client = new Client({
   intents: [
@@ -31,6 +32,7 @@ const workCooldownsFile   = path.join(dataDir, "workCooldowns.json");
 const userProfilesFile    = path.join(dataDir, "userProfiles.json");
 const userInventoryFile   = path.join(dataDir, "userInventory.json");
 const userStatsFile       = path.join(dataDir, "userStats.json");
+const warningsFile        = path.join(dataDir, "warnings.json");
 
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 
@@ -57,6 +59,7 @@ const workCooldowns  = loadData(workCooldownsFile);
 const userProfiles   = loadData(userProfilesFile);
 const userInventory  = loadData(userInventoryFile);
 const userStats      = loadData(userStatsFile);
+const warningsMap    = loadData(warningsFile);
 
 // Aktif ses oturumları (ram'de tutuluyor — key: guildId_userId, value: joinTimestamp)
 const voiceSessions = new Map();
@@ -71,6 +74,7 @@ setInterval(() => {
   saveData(userProfilesFile, userProfiles);
   saveData(userInventoryFile, userInventory);
   saveData(userStatsFile, userStats);
+  saveData(warningsFile, warningsMap);
 }, 30000);
 
 // ── Mağaza ürünleri ────────────────────────────────────────────────────────────
@@ -274,19 +278,25 @@ function saveAll() {
   saveData(userProfilesFile, userProfiles);
   saveData(userInventoryFile, userInventory);
   saveData(userStatsFile, userStats);
+  saveData(warningsFile, warningsMap);
 }
 process.on("SIGINT",  () => { console.log("Kapatılıyor..."); saveAll(); process.exit(0); });
 process.on("SIGTERM", () => { console.log("Kapatılıyor..."); saveAll(); process.exit(0); });
 
 // ── Ses oturumu takibi ────────────────────────────────────────────────────────
 client.on("voiceStateUpdate", (oldState, newState) => {
-  const userId  = newState.id;
-  const guildId = newState.guild.id;
-  const key     = `${guildId}_${userId}`;
+  const userId  = newState.member?.id || oldState.member?.id;
+  const guildId = (newState.guild || oldState.guild).id;
+  if (!userId || !guildId) return;
+  // Botu ve botun kendisini atla
+  const member = newState.member || oldState.member;
+  if (member?.user?.bot) return;
 
-  const joinedChannel  = !oldState.channel && newState.channel;
-  const leftChannel    = oldState.channel && !newState.channel;
-  const movedChannel   = oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id;
+  const key = `${guildId}_${userId}`;
+
+  const joinedChannel = !oldState.channelId && newState.channelId;
+  const leftChannel   = oldState.channelId && !newState.channelId;
+  const movedChannel  = oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId;
 
   if (joinedChannel) {
     voiceSessions.set(key, Date.now());
@@ -294,10 +304,11 @@ client.on("voiceStateUpdate", (oldState, newState) => {
     const joinTime = voiceSessions.get(key);
     if (joinTime) {
       const minutes = (Date.now() - joinTime) / 60000;
-      if (minutes >= 1) addVoiceMinutes(userId, guildId, minutes);
+      if (minutes > 0) addVoiceMinutes(userId, guildId, minutes);
       voiceSessions.delete(key);
     }
   } else if (movedChannel) {
+    // Kanal değiştirdi — sayacı yoksa başlat, varsa devam et
     if (!voiceSessions.has(key)) voiceSessions.set(key, Date.now());
   }
 });
@@ -353,6 +364,9 @@ client.on("messageCreate", async (message) => {
             "`a!temizle <1-100>` • Mesaj siler",
             "`a!mute @üye <süre>` • Susturur (10m, 1h, 1d)",
             "`a!unmute @üye` • Susturmayı kaldırır",
+            "`a!warn @üye <sebep>` • Warn atar",
+            "`a!warnings [@üye]` • Warn geçmişini listeler",
+            "`a!unwarn @üye <numara|all>` • Warn siler",
           ].join("\n"), inline: false,
         },
         {
@@ -897,6 +911,129 @@ client.on("messageCreate", async (message) => {
     const text = args.join(" ");
     if (!text) return message.reply("Ne yazayım?");
     return message.channel.send(text);
+  }
+
+  // ── WARN SİSTEMİ ──────────────────────────────────────────────────────────────
+  if (command === "warn") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers))
+      return message.reply("🚫 Warn atma yetkin yok!");
+    const target = message.mentions.members.first();
+    if (!target) return message.reply("Kimi warn atacağım? Birini etiketle. Örnek: `a!warn @üye sebep`");
+    if (target.user.bot) return message.reply("Botlara warn atamazsın!");
+    const reason = args.slice(1).join(" ");
+    if (!reason) return message.reply("Sebep belirt! Örnek: `a!warn @üye kurallara uymadı`");
+
+    const warnKey = `${message.guild.id}_${target.id}`;
+    if (!warningsMap.has(warnKey)) warningsMap.set(warnKey, []);
+    const warns = warningsMap.get(warnKey);
+    warns.push({ id: warns.length + 1, reason, by: message.author.tag, timestamp: Date.now() });
+    saveData(warningsFile, warningsMap);
+
+    return message.channel.send({ embeds: [
+      new EmbedBuilder().setColor("Orange").setTitle("⚠️ Warn Atıldı")
+        .addFields(
+          { name: "Kullanıcı", value: target.user.tag, inline: true },
+          { name: "Yetkili",   value: message.author.tag, inline: true },
+          { name: "Warn #",    value: `${warns.length}`, inline: true },
+          { name: "Sebep",     value: reason },
+        ).setFooter({ text: `Toplam ${warns.length} warn` }).setTimestamp(),
+    ]});
+  }
+
+  if (command === "warnings" || command === "warnlist") {
+    const target = message.mentions.members.first() || message.member;
+    const warnKey = `${message.guild.id}_${target.id}`;
+    const warns = warningsMap.get(warnKey) || [];
+
+    if (warns.length === 0)
+      return message.reply(`${target.user.tag} adlı kullanıcının hiç warni yok.`);
+
+    const warnText = warns.map(w => {
+      const tarih = new Date(w.timestamp).toLocaleDateString("tr-TR");
+      return `**#${w.id}** — ${w.reason}\n↳ *${w.by}* tarafından, ${tarih}`;
+    }).join("\n\n");
+
+    return message.channel.send({ embeds: [
+      new EmbedBuilder().setColor("Orange").setTitle(`⚠️ ${target.user.tag} — Warn Geçmişi`)
+        .setThumbnail(target.user.displayAvatarURL({ dynamic: true }))
+        .setDescription(warnText)
+        .setFooter({ text: `Toplam ${warns.length} warn` }).setTimestamp(),
+    ]});
+  }
+
+  if (command === "unwarn") {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers))
+      return message.reply("🚫 Warn silme yetkin yok!");
+    const target = message.mentions.members.first();
+    if (!target) return message.reply("Kimin warnını sileceğim? Birini etiketle.");
+    const warnKey = `${message.guild.id}_${target.id}`;
+    const warns = warningsMap.get(warnKey) || [];
+    if (warns.length === 0) return message.reply(`${target.user.tag} adlı kullanıcının hiç warni yok.`);
+
+    const sub = args[1]?.toLowerCase();
+
+    if (sub === "all" || sub === "hepsi") {
+      warningsMap.set(warnKey, []);
+      saveData(warningsFile, warningsMap);
+      return message.channel.send({ embeds: [
+        new EmbedBuilder().setColor("Green").setTitle("✅ Tüm Warnlar Silindi")
+          .setDescription(`${target.user.tag} adlı kullanıcının **${warns.length}** warni silindi.`)
+          .setTimestamp(),
+      ]});
+    }
+
+    const warnNo = parseInt(sub);
+    if (!warnNo || warnNo < 1 || warnNo > warns.length)
+      return message.reply(`Geçerli bir warn numarası gir (1-${warns.length}). Tümünü silmek için \`all\` yaz.`);
+
+    const removed = warns.splice(warnNo - 1, 1)[0];
+    // ID'leri yeniden numaralandır
+    warns.forEach((w, i) => { w.id = i + 1; });
+    warningsMap.set(warnKey, warns);
+    saveData(warningsFile, warningsMap);
+
+    return message.channel.send({ embeds: [
+      new EmbedBuilder().setColor("Green").setTitle("✅ Warn Silindi")
+        .addFields(
+          { name: "Kullanıcı", value: target.user.tag, inline: true },
+          { name: "Silinen Warn", value: `#${warnNo} — ${removed.reason}`, inline: false },
+          { name: "Kalan Warn", value: `${warns.length}`, inline: true },
+        ).setTimestamp(),
+    ]});
+  }
+
+  // ── GİZLİ: KANAL GİR ─────────────────────────────────────────────────────────
+  if (command === "kanalagir") {
+    if (message.author.id !== message.guild.ownerId) return;
+
+    const voiceChannel = message.mentions.channels.first() ||
+      (args[0] ? message.guild.channels.cache.get(args[0]) : null);
+
+    if (!voiceChannel || voiceChannel.type !== 2)
+      return message.reply("Geçerli bir ses kanalı etiketle veya ID gir.");
+
+    try {
+      const connection = joinVoiceChannel({
+        channelId: voiceChannel.id,
+        guildId:   message.guild.id,
+        adapterCreator: message.guild.voiceAdapterCreator,
+        selfDeaf: true,
+        selfMute: true,
+      });
+
+      connection.on(VoiceConnectionStatus.Ready, () => {
+        message.reply(`✅ **${voiceChannel.name}** kanalına bağlandım.`);
+      });
+
+      connection.on("error", (err) => {
+        console.error("Ses bağlantısı hatası:", err);
+        message.reply("❌ Ses kanalına bağlanırken hata oluştu.");
+      });
+    } catch (err) {
+      console.error("kanalagir hatası:", err);
+      return message.reply("❌ Bağlanılamadı.");
+    }
+    return;
   }
 
   // ── MODERASYON ────────────────────────────────────────────────────────────────
