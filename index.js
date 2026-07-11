@@ -146,7 +146,7 @@ function addXP(userId, guildId) {
 }
 
 // Level atlama mesajı gönderme
-function sendLevelUpMessage(member, newLevel) {
+function sendLevelUpMessage(member, newLevel, coinReward) {
   const guildId = member.guild.id;
   const levelChannelId = levelChannels.get(guildId);
   if (!levelChannelId) return;
@@ -155,12 +155,21 @@ function sendLevelUpMessage(member, newLevel) {
 
   const embed = new EmbedBuilder()
     .setColor("Gold")
-    .setTitle("🎉 Level Atladı!")
-    .setDescription(`${member.user.tag} artık **Level ${newLevel}**!`)
+    .setTitle("🎉 Tebrikler, Seviye Atladın!")
+    .setDescription(
+      `${member} tebrikler! Artık **${newLevel}. seviye**sin! 🚀\n\n` +
+      `💰 Ödül olarak **${coinReward.toLocaleString()} HB** kazandın!`
+    )
     .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+    .addFields(
+      { name: "👤 Kullanıcı", value: member.user.tag, inline: true },
+      { name: "⭐ Yeni Seviye", value: `${newLevel}`, inline: true },
+      { name: "💰 Ödül", value: `${coinReward.toLocaleString()} HB`, inline: true },
+    )
+    .setFooter({ text: "Mesaj atmaya devam et, daha fazla seviye kazan!" })
     .setTimestamp();
 
-  channel.send({ embeds: [embed] });
+  channel.send({ content: `${member}`, embeds: [embed] });
 }
 
 // Coin sistemi fonksiyonları
@@ -217,7 +226,7 @@ client.on("messageCreate", async (message) => {
     const newLevel = userLevels.get(userKey).level;
     const coinReward = newLevel * 50;
     addCoins(message.author.id, message.guild.id, coinReward);
-    sendLevelUpMessage(message.member, newLevel);
+    sendLevelUpMessage(message.member, newLevel, coinReward);
   }
 
   // Rastgele coin kazanma
@@ -282,9 +291,9 @@ client.on("messageCreate", async (message) => {
         {
           name: "📈 **LEVEL SİSTEMİ**",
           value: [
-            "`⭐ !level` • Mevcut level ve XP bilginizi gösterir",
-            "`📢 !levelkanal #kanal` • Level atlama mesaj kanalını ayarlar",
-            "`🏆 !leaderboard` • Level ve coin sıralamasını gösterir",
+            "`⭐ a!level` • Mevcut level ve XP bilginizi gösterir",
+            "`📢 a!seviyekanal #kanal` • Seviye atlama mesaj kanalını ayarlar",
+            "`🏆 a!leaderboard` • Level ve coin sıralamasını gösterir",
           ].join("\n"),
           inline: false,
         },
@@ -311,8 +320,8 @@ client.on("messageCreate", async (message) => {
         {
           name: "⚙️ **GENEL KOMUTLAR**",
           value: [
-            "`🏓 !ping` • Botun gecikme süresini gösterir",
-            "`❓ !yardım` • Bu yardım menüsünü gösterir",
+            "`🏓 a!ping` • Botun gecikme süresini gösterir",
+            "`❓ a!yardım` • Bu yardım menüsünü gösterir",
           ].join("\n"),
           inline: false,
         },
@@ -360,19 +369,20 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [embed] });
   }
 
-  if (command === "levelkanal") {
+  if (command === "levelkanal" || command === "seviyekanal") {
     if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
       return message.reply("🚫 Kanal yönetme yetkin yok!");
     }
     const channel = message.mentions.channels.first();
     if (!channel) {
-      return message.reply("Bir kanal etiketle! Örnek: `a!levelkanal #genel`");
+      return message.reply("Bir kanal etiketle! Örnek: `a!seviyekanal #genel`");
     }
     levelChannels.set(message.guild.id, channel.id);
+    saveData(levelChannelsFile, levelChannels);
     const embed = new EmbedBuilder()
       .setColor("Green")
-      .setTitle("✅ Level Kanalı Ayarlandı")
-      .setDescription(`Level atlama mesajları artık ${channel} kanalına gönderilecek!`)
+      .setTitle("✅ Seviye Kanalı Ayarlandı")
+      .setDescription(`Seviye atlama tebrik mesajları artık ${channel} kanalına gönderilecek!`)
       .setTimestamp();
     return message.channel.send({ embeds: [embed] });
   }
