@@ -15,7 +15,7 @@ const client = new Client({
   ],
 });
 
-const prefix = "!";
+const prefix = "a!";
 
 const fs = require("fs");
 const path = require("path");
@@ -366,7 +366,7 @@ client.on("messageCreate", async (message) => {
     }
     const channel = message.mentions.channels.first();
     if (!channel) {
-      return message.reply("Bir kanal etiketle! Örnek: `!levelkanal #genel`");
+      return message.reply("Bir kanal etiketle! Örnek: `a!levelkanal #genel`");
     }
     levelChannels.set(message.guild.id, channel.id);
     const embed = new EmbedBuilder()
@@ -499,7 +499,7 @@ client.on("messageCreate", async (message) => {
   if (command === "slot") {
     const amount = parseInt(args[0]);
     if (!amount || amount < 1) {
-      return message.reply("Geçerli bir miktar gir! Örnek: `!slot 100`");
+      return message.reply("Geçerli bir miktar gir! Örnek: `a!slot 100`");
     }
     const bal = getCoins(message.author.id, message.guild.id);
     if (bal < amount) {
@@ -547,10 +547,10 @@ client.on("messageCreate", async (message) => {
     const choice = args[1]?.toLowerCase();
 
     if (!amount || amount < 1) {
-      return message.reply("Geçerli bir miktar gir! Örnek: `!coinflip 100 yazı`");
+      return message.reply("Geçerli bir miktar gir! Örnek: `a!coinflip 100 yazı`");
     }
     if (!choice || (choice !== "yazı" && choice !== "tura")) {
-      return message.reply("Yazı veya tura seç! Örnek: `!coinflip 100 yazı`");
+      return message.reply("Yazı veya tura seç! Örnek: `a!coinflip 100 yazı`");
     }
     const bal = getCoins(message.author.id, message.guild.id);
     if (bal < amount) {
@@ -584,10 +584,10 @@ client.on("messageCreate", async (message) => {
     const guess = parseInt(args[1]);
 
     if (!amount || amount < 1) {
-      return message.reply("Geçerli bir miktar gir! Örnek: `!dice 100 3`");
+      return message.reply("Geçerli bir miktar gir! Örnek: `a!dice 100 3`");
     }
     if (!guess || guess < 1 || guess > 6) {
-      return message.reply("1-6 arası bir sayı tahmin et! Örnek: `!dice 100 3`");
+      return message.reply("1-6 arası bir sayı tahmin et! Örnek: `a!dice 100 3`");
     }
     const bal = getCoins(message.author.id, message.guild.id);
     if (bal < amount) {
@@ -681,7 +681,7 @@ client.on("messageCreate", async (message) => {
   if (command === "ship") {
     const mentionedUser = message.mentions.users.first();
     if (!mentionedUser) {
-      return message.reply("Kimi ile shipleyelim? Birini etiketle! Örnek: `!ship @kullanıcı`");
+      return message.reply("Kimi ile shipleyelim? Birini etiketle! Örnek: `a!ship @kullanıcı`");
     }
     if (mentionedUser.id === message.author.id) {
       return message.reply("Kendini kendine shipliyemezsin! 😅");
@@ -872,7 +872,7 @@ client.on("messageCreate", async (message) => {
     }
     const miktar = parseInt(args[0]);
     if (!miktar || miktar < 1 || miktar > 100) {
-      return message.reply("1-100 arası bir sayı gir. Örnek: `!temizle 10`");
+      return message.reply("1-100 arası bir sayı gir. Örnek: `a!temizle 10`");
     }
     try {
       await message.channel.bulkDelete(miktar + 1, true);
@@ -895,7 +895,7 @@ client.on("messageCreate", async (message) => {
 
     const ms = require("ms");
     const süreArg = args[1];
-    if (!süreArg) return message.reply("Süre belirt! Örnek: `!mute @kullanıcı 10m`");
+    if (!süreArg) return message.reply("Süre belirt! Örnek: `a!mute @kullanıcı 10m`");
     const süreMs = ms(süreArg);
     if (!süreMs || süreMs < 1000 || süreMs > 28 * 24 * 60 * 60 * 1000) {
       return message.reply("Geçerli bir süre gir (en az 1s, en fazla 28 gün). Örnek: `10m`, `1h`, `1d`");
