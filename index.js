@@ -1538,11 +1538,14 @@ client.on("messageDelete", (msg) => {
 });
 
 // ── Ana mesaj dinleyicisi ─────────────────────────────────────────────────────
+// ⏱️ Cooldown (Bekleme Süresi) Hafızası
+// Not: Bu satırı index.js içinde messageCreate olayının DIŞINA, en üst kısımlara koyabilirsin.
+const cooldowns = new Map();
+
 client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.guild) return;
 
-  
-
+  // 📈 Arkada Çalışan XP ve İstatistik Sistemleri (Cooldown'dan etkilenmez)
   const leveledUp = addXP(message.author.id, message.guild.id);
   if (leveledUp) {
     const key = `${message.guild.id}_${message.author.id}`;
@@ -1558,6 +1561,7 @@ client.on("messageCreate", async (message) => {
       Math.floor(Math.random() * 10) + 1,
     );
 
+  // 💬 Prefix Olmayan Otomatik Cevaplar (Cooldown'dan etkilenmez)
   if (!message.content.startsWith(prefix)) {
     const msg = message.content.toLowerCase();
     if (msg === "sa") return message.reply("as hg knk");
@@ -1566,11 +1570,32 @@ client.on("messageCreate", async (message) => {
     if (msg === "iyi geceler") return message.reply("tatlı rüyalar 😴");
     return;
   }
-  
 
+  // 🛡️ 2 SANİYE COOLDOWN SİSTEMİ (Sadece komutlar için geçerli)
+  const userId = message.author.id;
+  const simdi = Date.now();
+  const cooldownSuresi = 2 * 1000; // 2 saniye
+
+  if (cooldowns.has(userId)) {
+    const bitisZamani = cooldowns.get(userId) + cooldownSuresi;
+
+    if (simdi < bitisZamani) {
+      const kalanSure = ((bitisZamani - simdi) / 1000).toFixed(1);
+      return message.reply(`⚠️ Sakin ol kanka! Komutları spamleme amk, **${kalanSure} saniye** bekle.`);
+    }
+  }
+
+  // Süre temizse zaman damgasını vur ve 2 saniye sonra hafızadan sil
+  cooldowns.set(userId, simdi);
+  setTimeout(() => cooldowns.delete(userId), cooldownSuresi);
+
+  // ⚙️ Komut Parçalama ve Çalıştırma Kısmı
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift()?.toLowerCase();
   if (!command) return;
+
+  // Bundan sonrası senin mevcut komutlarının (if-else veya switch blokları) devamı...
+
 
   // ── YARDIM ─────────────────────────────────────────────────────────────────
   if (command === "yardım" || command === "yardim" || command === "help") {
