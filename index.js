@@ -1564,8 +1564,6 @@ client.on("messageCreate", async (message) => {
     if (msg === "selam") return message.reply("selam canım nasılsın?");
     if (msg === "günaydın") return message.reply("günaydın şampiyon ☀️");
     if (msg === "iyi geceler") return message.reply("tatlı rüyalar 😴");
-    if (msg === "bot")
-      return message.reply("evet ben botum, yapımcım Reign 👑");
     return;
   }
   
@@ -1590,6 +1588,7 @@ client.on("messageCreate", async (message) => {
               name: "🛡️ MODERASYON KOMUTLARI",
               value: [
                 "› `a!ban @üye / ID` • Kullanıcıyı sunucudan yasaklar.",
+                "› `a!unban @üye / ID` • Kullanıcının yasaklamasını kaldırır.",
                 "› `a!kick @üye / ID` • Kullanıcıyı sunucudan atar.",
                 "› `a!mute @üye / ID` • Kullanıcıyı susturur.",
                 "› `a!unmute @üye / ID` • Kullanıcının susturmasını kaldırır.",
@@ -1603,7 +1602,6 @@ client.on("messageCreate", async (message) => {
             {
               name: "⚙️ YÖNETİM & GÜVENLİK SİSTEMLERİ *(Admin)*",
               value: [
-                "› `a!pk aç / kapat` • Patlama/Spam korumasını aktif eder.",
                 "› `a!hbengel aç / kapat` • Belirtilen kanalda HB kazanımını engeller.",
                 "› `a!seviyerol @rol <seviye>` • Belirli seviyeye ulaşana rol ödülü bağlar.",
                 "› `a!rololustur <isim> <#renk>` • Sunucuda hızlıca yeni rol açar.",
@@ -1614,7 +1612,7 @@ client.on("messageCreate", async (message) => {
             {
               name: "🌌 GACHA & SQUAD (TAKIM) SİSTEMİ",
               value: [
-                "› `a!gacha` • Şansına yeni bir gacha kapsülü açıp karakter toplarsın. 🎡",
+                "› `a!roll` • Şansına yeni bir gacha kapsülü açıp karakter toplarsın. 🎡",
                 "› `a!envanter` • Sahip olduğun tüm gacha karakterlerini listeler.",
                 "› `a!squad` • Güncel aktif 3'lü savaş takımını ekrana getirir. 📋",
                 "› `a!squad ekle <Gacha Adı>` • Envanterindeki bir gachayı savaş takımına sokar.",
