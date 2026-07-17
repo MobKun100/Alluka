@@ -1565,7 +1565,7 @@ client.on("messageCreate", async (message) => {
     if (msg === "günaydın") return message.reply("günaydın şampiyon ☀️");
     if (msg === "iyi geceler") return message.reply("tatlı rüyalar 😴");
     if (msg === "bot")
-      return message.reply("evet ben botum, yapımcım axel_e 👑");
+      return message.reply("evet ben botum, yapımcım Reign 👑");
     return;
   }
   
