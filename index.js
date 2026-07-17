@@ -1,4 +1,14 @@
 require("dotenv").config();
+
+// 🌟 REPLIT FFMPEG ÇÖZÜMÜ: Sistemde pkgs aramaya son!
+try {
+  const ffmpegPath = require('ffmpeg-static');
+  process.env.FFMPEG_PATH = ffmpegPath;
+  console.log("✅ FFmpeg başarıyla tanımlandı:", ffmpegPath);
+} catch (err) {
+  console.log("❌ FFmpeg tanımlanırken hata oluştu!");
+}
+
 const {
   Client,
   GatewayIntentBits,
@@ -34,16 +44,16 @@ const fs = require("fs");
 const path = require("path");
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
-const { YtDlpPlugin } = require('@distube/yt-dlp');
+const { SoundCloudPlugin } = require('@distube/soundcloud'); // 👈 SoundCloud eklentisi dahil edildi
+const { YouTubePlugin } = require('@distube/youtube');
 
-// 🎵 Müzik Motorunu Başlatıyoruz
+// 🚀 Replit Dostu Güçlü Müzik Motoru
 client.distube = new DisTube(client, {
-  leaveOnEmpty: true,       // Odada kimse kalmazsa bot çıksın
-  leaveOnFinish: false,     // Şarkı bitince hemen çıkmasın, sıradakini beklesin
-  emitNewSongOnly: true,    // Sadece yeni şarkıya geçince mesaj atsın
+  emitNewSongOnly: true,
   plugins: [
-    new SpotifyPlugin(),    // Spotify linklerini çözmek için
-    new YtDlpPlugin()       // YouTube videolarını oynatmak için
+    new SpotifyPlugin(),
+    new SoundCloudPlugin(), // 👈 Replit IP banlarından etkilenmeyen kahramanımız!
+    new YouTubePlugin()
   ]
 });
 
@@ -63,25 +73,9 @@ client.distube.on("error", (channel, error) => {
   channel.send("❌ Şarkı oynatılırken bir hata oluştu!").catch(() => {});
 });
 
-// cookies.json dosyasını koda dahil ediyoruz
-let youtubeCookies;
-if (fs.existsSync('./cookies.json')) {
-  youtubeCookies = JSON.parse(fs.readFileSync('./cookies.json', 'utf-8'));
-}
 
-client.distube = new DisTube(client, {
-  leaveOnEmpty: true,
-  leaveOnFinish: false,
-  emitNewSongOnly: true,
-  plugins: [
-    new SpotifyPlugin(),
-    new YtDlpPlugin({
-      updateDelay: 60 * 60 * 1000, // Günde 1 kez yt-dlp'yi otomatik günceller
-      // YouTube engelini aşmak için çerezleri ekliyoruz
-      cookies: youtubeCookies 
-    })
-  ]
-});
+
+
 
 
 
@@ -4888,7 +4882,6 @@ client.on("messageCreate", async (message) => {
 
   //şarkı
 
-  // ── 1. ŞARKI OYNATMA KOMUTU (a!oynat veya a!play) ──
   if (command === "oynat" || command === "play" || command === "p") {
     const voiceChannel = message.member.voice.channel;
     if (!voiceChannel) {
@@ -4900,17 +4893,28 @@ client.on("messageCreate", async (message) => {
       return message.reply("❓ Hangi şarkıyı açmak istiyorsun? İsmini veya linkini yazmalısın.");
     }
 
-    // Botun ses kanalına girme ve konuşma yetkilerini kontrol ediyoruz
     const permissions = voiceChannel.permissionsFor(message.client.user);
     if (!permissions.has("Connect") || !permissions.has("Speak")) {
       return message.reply("❌ Ses kanalına katılmak veya konuşmak için yetkim yok kanka!");
     }
 
-    const loading = await message.channel.send(`🔍 **"${query}"** aranıyor ve hazırlanıyor...`);
+    // 🌟 REPLIT İÇİN AKILLI SİSTEM: 
+    // Eğer yazılan şey bir web linki değilse aramayı YouTube yerine SoundCloud'dan yapar.
+    let finalQuery = query;
+    let isSearch = false;
+    if (!query.startsWith("http://") && !query.startsWith("https://")) {
+      finalQuery = `scsearch:${query}`;
+      isSearch = true;
+    }
+
+    const loading = await message.channel.send(
+      isSearch 
+        ? `🔍 **"${query}"** SoundCloud üzerinde aranıyor...` 
+        : `🔍 Link çözümleniyor ve hazırlanıyor...`
+    );
 
     try {
-      // DisTube şarkıyı bulur, ses kanalına katılır ve çalmaya başlar
-      await message.client.distube.play(voiceChannel, query, {
+      await message.client.distube.play(voiceChannel, finalQuery, {
         textChannel: message.channel,
         member: message.member,
         message: message
@@ -4923,40 +4927,6 @@ client.on("messageCreate", async (message) => {
     }
   }
 
-  // ── 2. ŞARKI GEÇME KOMUTU (a!geç veya a!skip) ──
-  if (command === "geç" || command === "skip" || command === "s") {
-    const queue = message.client.distube.getQueue(message);
-    if (!queue) {
-      return message.reply("❌ Şu anda çalan bir şarkı yok kanka!");
-    }
-
-    try {
-      // Eğer sırada başka şarkı yoksa skip atmak yerine durdurur
-      if (queue.songs.length <= 1) {
-        await queue.stop();
-        return message.reply("⏭️ Sırada başka şarkı olmadığı için müzik durduruldu.");
-      }
-
-      await queue.skip();
-      return message.reply("⏭️ Şarkı başarıyla geçildi!");
-    } catch (err) {
-      return message.reply("❌ Şarkı geçilirken bir hata oluştu!");
-    }
-  }
-
-  // ── 3. MÜZİĞİ DURDURMA VE ODADAN ATMA KOMUTU (a!durdur veya a!stop) ──
-  if (command === "durdur" || command === "stop" || command === "ayrıl") {
-    const queue = message.client.distube.getQueue(message);
-
-    // Eğer çalan bir şey varsa durdur ve odadan çık
-    if (queue) {
-      await queue.stop();
-    }
-
-    // Her ihtimale karşı botu odadan güvenle çıkarıyoruz
-    await message.client.distube.voices.leave(message);
-    return message.reply("🛑 Müzik durduruldu ve ses kanalından ayrıldım. Görüşmek üzere kanka! 👋");
-  }
 
 
 
