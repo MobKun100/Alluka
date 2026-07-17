@@ -4905,53 +4905,7 @@ client.on("messageCreate", async (message) => {
 
   //şarkı
 
-  if (command === "oynat" || command === "play" || command === "p") {
-    const voiceChannel = message.member.voice.channel;
-    if (!voiceChannel) {
-      return message.reply("❌ Müzik açmak için önce bir ses kanalına girmelisin kanka!");
-    }
-
-    const query = args.join(" ");
-    if (!query) {
-      return message.reply("❓ Hangi şarkıyı açmak istiyorsun? İsmini veya linkini yazmalısın.");
-    }
-
-    const permissions = voiceChannel.permissionsFor(message.client.user);
-    if (!permissions.has("Connect") || !permissions.has("Speak")) {
-      return message.reply("❌ Ses kanalına katılmak veya konuşmak için yetkim yok kanka!");
-    }
-
-    // 🌟 REPLIT İÇİN AKILLI SİSTEM: 
-    // Eğer yazılan şey bir web linki değilse aramayı YouTube yerine SoundCloud'dan yapar.
-    let finalQuery = query;
-    let isSearch = false;
-    if (!query.startsWith("http://") && !query.startsWith("https://")) {
-      finalQuery = `scsearch:${query}`;
-      isSearch = true;
-    }
-
-    const loading = await message.channel.send(
-      isSearch 
-        ? `🔍 **"${query}"** SoundCloud üzerinde aranıyor...` 
-        : `🔍 Link çözümleniyor ve hazırlanıyor...`
-    );
-
-    try {
-      await message.client.distube.play(voiceChannel, finalQuery, {
-        textChannel: message.channel,
-        member: message.member,
-        message: message
-      });
-      await loading.delete().catch(() => {});
-    } catch (err) {
-      console.error(err);
-      await loading.delete().catch(() => {});
-      return message.reply("❌ Şarkı aranırken bir sorun oluştu, tekrar dene kanka!");
-    }
-  }
-
-
-
+  
 
 
   // ── KANAL GİR (gizli, admin) ───────────────────────────────────────────────
