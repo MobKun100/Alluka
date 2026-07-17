@@ -1574,7 +1574,7 @@ client.on("messageCreate", async (message) => {
   // 🛡️ 2 SANİYE COOLDOWN SİSTEMİ (Sadece komutlar için geçerli)
   const userId = message.author.id;
   const simdi = Date.now();
-  const cooldownSuresi = 2 * 1000; // 2 saniye
+  const cooldownSuresi = 120; // 2 saniye
 
   if (cooldowns.has(userId)) {
     const bitisZamani = cooldowns.get(userId) + cooldownSuresi;
