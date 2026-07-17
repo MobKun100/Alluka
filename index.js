@@ -4966,8 +4966,8 @@ client.on("messageCreate", async (message) => {
     res.send('Alluka tıkır tıkır çalışıyor kanka! 🚀');
   });
 
-  app.listen(3000, () => {
-    console.log('Web sunucusu 3000 portunda hazır.');
+  app.listen(5000, () => {
+    console.log('Web sunucusu 5000 portunda hazır.');
   });
 
 });
