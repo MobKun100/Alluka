@@ -1454,57 +1454,53 @@ client.on("voiceStateUpdate", (oldState, newState) => {
 
 // Ses Yardımcıları
 
-client.on('voiceStateUpdate', (oldState, newState) => {
-  if (newState.member.user.bot) return;
+const voiceTimeouts = new Map(); // Kullanıcıların giriş zamanlarını tutmak için
 
-  const userId = newState.id;
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    if (newState.member.user.bot) return;
 
-  // Kullanıcı bir ses kanalına bağlandıysa veya kanallar arası geçiş yaptıysa
-  if (!oldState.channelId && newState.channelId) {
-    // Sağır veya susturulmuş değilse süresini başlat (Afk kalıp XP kasılmasın)
-    if (!newState.selfDeaf && !newState.selfMute) {
-      voiceActiveUsers.set(userId, Date.now());
+    const userId = newState.id;
+    const guildId = newState.guild.id;
+
+    // Durum 1: Kullanıcı bir ses kanalına katıldı
+    if (!oldState.channelId && newState.channelId) {
+        voiceTimeouts.set(`${guildId}_${userId}`, Date.now());
     }
-  } 
-  // Kullanıcı ses kanalından tamamen çıktıysa
-  else if (oldState.channelId && !newState.channelId) {
-    voiceActiveUsers.delete(userId);
-  }
-  // Susturma/Sağırlaştırma durumları değiştiyse
-  else if (oldState.channelId === newState.channelId) {
-    if (newState.selfDeaf || newState.selfMute) {
-      voiceActiveUsers.delete(userId); // XP kazanımını durdur
-    } else if (!voiceActiveUsers.has(userId)) {
-      voiceActiveUsers.set(userId, Date.now()); // Yeniden başlat
+
+    // Durum 2: Kullanıcı ses kanalından ayrıldı veya oda değiştirdi
+    if (oldState.channelId && (!newState.channelId || oldState.channelId !== newState.channelId)) {
+        const joinTime = voiceTimeouts.get(`${guildId}_${userId}`);
+        
+        if (joinTime) {
+            const timeSpent = Date.now() - joinTime; // Milisaniye cinsinden seste kalma süresi
+            const minutesSpent = Math.floor(timeSpent / 60000); // Dakikaya çevir
+
+            if (minutesSpent > 0) {
+                // Her dakika için örn: 20 XP
+                const voiceXpToAdd = minutesSpent * 20;
+
+                let userStats = await db.get(`stats_${guildId}_${userId}`) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
+                userStats.voiceXp += voiceXpToAdd;
+
+                // Ses seviye atlama kontrolü
+                let nextVoiceLevelXp = userStats.voiceLevel * 600;
+                while (userStats.voiceXp >= nextVoiceLevelXp) {
+                    userStats.voiceXp -= nextVoiceLevelXp;
+                    userStats.voiceLevel += 1;
+                }
+
+                await db.set(`stats_${guildId}_${userId}`, userStats);
+            }
+            
+            // Eğer sesten tamamen çıktıysa map'ten sil, oda değiştirdiyse yeni süreyi başlat
+            if (!newState.channelId) {
+                voiceTimeouts.delete(`${guildId}_${userId}`);
+            } else {
+                voiceTimeouts.set(`${guildId}_${userId}`, Date.now());
+            }
+        }
     }
-  }
 });
-
-// Her 1 dakikada bir (60000 ms) sestedekileri kontrol edip 5-10 arası makul bir XP veren döngü
-setInterval(() => {
-  const simdi = Date.now();
-  for (const [userId, girisZamani] of voiceActiveUsers.entries()) {
-    // 1 dakikadan fazla süre geçmişse
-    if (simdi - girisZamani >= 60000) {
-      const userData = getUserData(userId);
-      const kazanilanXp = Math.floor(Math.random() * 6) + 5; // 5-10 arası az bir XP
-      
-      userData.voiceXp += kazanilanXp;
-      
-      // Seviye kontrolü
-      let reqXp = getRequiredXp(userData.voiceLevel);
-      if (userData.voiceXp >= reqXp) {
-        userData.voiceXp -= reqXp;
-        userData.voiceLevel++;
-        // İsteğe bağlı: Sunucuya ses seviye atlama mesajı tetiklenebilir
-      }
-      
-      // Giriş zamanını güncelle ki sonraki dakikayı saysın
-      voiceActiveUsers.set(userId, simdi);
-    }
-  }
-}, 30000); // 30 saniyede bir tarar, dakikası dolana XP basar
-
 
 
 // ── Davet log ─────────────────────────────────────────────────────────────────
@@ -1638,28 +1634,34 @@ client.on("messageDelete", (msg) => {
 // Not: Bu satırı index.js içinde messageCreate olayının DIŞINA, en üst kısımlara koyabilirsin.
 const cooldowns = new Map();
 
-client.on("messageCreate", async (message) => {
-  if (message.author.bot || !message.guild) return;
+// Mesaj başına XP ekleme mantığı
+client.on('messageCreate', async (message) => {
+    if (message.author.bot || !message.guild) return;
 
-  // 📈 Arkada Çalışan Global XP, Coin ve İstatistik Sistemi (Cooldown'dan etkilenmez)
-const userData = getUserData(message.author.id);
-const chatKazanilanXp = Math.floor(Math.random() * 4) + 2; // 2-5 arası abartısız XP
+    const userId = message.author.id;
+    const guildId = message.guild.id;
 
-userData.chatXp += chatKazanilanXp;
-const gerekenChatXp = getRequiredXp(userData.chatLevel);
+    // Veri tabanından mevcut xp ve leveli çek (Burayı kendi db sistemine göre uyarla)
+    let userStats = await db.get(`stats_${guildId}_${userId}`) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
 
-// Seviye Atlama Kontrolü
-if (userData.chatXp >= gerekenChatXp) {
-  userData.chatXp -= gerekenChatXp;
-  userData.chatLevel++;
-  
-  // Eski kodundaki seviye ödülü mantığı: (Yeni Seviye * 50) kadar Coin/HB ekle
-  const ödülCoin = userData.chatLevel * 50;
-  addCoins(message.author.id, ödülCoin); 
-  
-  // Seviye atlama mesajını tetikle
-  await sendLevelUpMessage(message.member, userData.chatLevel, ödülCoin);
-}
+    // Rastgele veya sabit XP ekle
+    const xpToAdd = Math.floor(Math.random() * 10) + 15; 
+    userStats.chatXp += xpToAdd;
+
+    // Seviye atlama kontrolü (Örn: Her seviye için gereken XP = level * 500)
+    let nextLevelXp = userStats.chatLevel * 500;
+    if (userStats.chatXp >= nextLevelXp) {
+        userStats.chatXp -= nextLevelXp;
+        userStats.chatLevel += 1;
+        
+        // İsteğe bağlı: Log kanalına veya mesaja seviye atlama bildirimi
+        message.channel.send(`🎉 Tebrikler ${message.author}, chat seviyen **${userStats.chatLevel}** oldu!`);
+    }
+
+    // Güncel veriyi kaydet
+    await db.set(`stats_${guildId}_${userId}`, userStats);
+});
+
 
 // Mesaj istatistiğini kaydet (Global)
 addMessageStat(message.author.id);
@@ -3327,13 +3329,26 @@ if (Math.random() < 0.05) {
   // ── PROFİL (Canvas) ────────────────────────────────────────────────────────
   if (command === "profil") {
   const hedefKullanici = message.mentions.users.first() || message.author;
-  const userData = getUserData(hedefKullanici.id);
+  const guildId = message.guild.id;
+
+  // 1. Veri Tabanından Chat ve Ses Loglarını Çekme
+  // Not: Eğer getUserData kullanıyorsan, içerideki objenin chatLevel, chatXp, voiceLevel, voiceXp barındırdığından emin ol.
+  // Eğer doğrudan bir db modülü (quick.db vb.) kullanıyorsan aşağıdaki satırı şuna çevirebilirsin:
+  // const userData = await db.get(`stats_${guildId}_${hedefKullanici.id}`) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
+  const rawData = getUserData(hedefKullanici.id) || {};
+  
+  const userData = {
+    chatLevel: rawData.chatLevel || 1,
+    chatXp: rawData.chatXp || 0,
+    voiceLevel: rawData.voiceLevel || 1,
+    voiceXp: rawData.voiceXp || 0
+  };
 
   // Canvas boyutlarını belirle (Geniş profil formatı)
   const canvas = createCanvas(900, 300);
   const ctx = canvas.getContext('2d');
 
-  // 1. Arka Plan Resmi (Kullanıcının Bannerını Discord API'den çekme)
+  // Arka Plan Resmi (Kullanıcının Bannerını Discord API'den çekme)
   let bannerUrl = null;
   try {
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN || client.token);
@@ -3372,19 +3387,20 @@ if (Math.random() < 0.05) {
 
   ctx.fillStyle = '#8e24aa';
   ctx.font = '20px sans-serif';
-  ctx.fillText('#Sokak Şövalyesi', 270, 105); // Sana özel minimal simge havası
+  ctx.fillText('✦ Sokak Şövalyesi', 270, 105); // İstediğin premium simge detayı
 
-  // Matematiksel Değerler
-  const reqChatXp = getRequiredXp(userData.chatLevel);
-  const reqVoiceXp = getRequiredXp(userData.voiceLevel);
+  // Matematiksel Değerler (Sonraki seviye için gerekli XP hesaplaması)
+  // Eğer getRequiredXp fonksiyonun yoksa burayı (userData.chatLevel * 500) gibi dinamik bir formüle de bağlayabilirsin.
+  const reqChatXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData.chatLevel) : (userData.chatLevel * 500);
+  const reqVoiceXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData.voiceLevel) : (userData.voiceLevel * 600);
 
   const chatYuzde = Math.min(userData.chatXp / reqChatXp, 1);
   const voiceYuzde = Math.min(userData.voiceXp / reqVoiceXp, 1);
 
-  // 3. MESAJ SEVİYESİ BARI VE METİNLERİ
+  // 3. MESAJ SEVİYESİ BARI VE METİNLERİ (Loglardan Gelen Veri)
   ctx.fillStyle = '#b0bec5';
   ctx.font = 'bold 18px sans-serif';
-  ctx.fillText('MESAJ SEVİYESİ', 270, 150);
+  ctx.fillText('💬 MESAJ SEVİYESİ', 270, 150);
 
   ctx.fillStyle = '#8e24aa';
   ctx.fillText(`LVL ${userData.chatLevel}`, 750, 150);
@@ -3410,10 +3426,10 @@ if (Math.random() < 0.05) {
   ctx.fillText(`${userData.chatXp.toLocaleString()} / ${reqChatXp.toLocaleString()} XP`, 270 + 275, 177);
   ctx.textAlign = 'start'; // Hizalamayı sıfırla
 
-  // 4. SES SEVİYESİ BARI VE METİNLERİ
+  // 4. SES SEVİYESİ BARI VE METİNLERİ (Ölçülen ve Aktarılan Veri)
   ctx.fillStyle = '#b0bec5';
   ctx.font = 'bold 18px sans-serif';
-  ctx.fillText('SES SEVİYESİ', 270, 220);
+  ctx.fillText('🔊 SES SEVİYESİ', 270, 220);
 
   ctx.fillStyle = '#8e24aa';
   ctx.fillText(`LVL ${userData.voiceLevel}`, 750, 220);
@@ -3462,6 +3478,7 @@ if (Math.random() < 0.05) {
   const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profil-karti.png' });
   return message.reply({ files: [attachment] });
 }
+
 
 
 
