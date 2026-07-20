@@ -40,6 +40,31 @@ function getUserData(userId) {
   return globalLevels.get(userId);
 }
 
+const fs = require('fs');
+
+// 1. Haritayı (Map) Tanımla
+const userVoiceLevels = new Map();
+
+// 2. JSON Dosyasından Verileri Oku ve Map'e Yükle
+try {
+    if (fs.existsSync('./userVoiceLevels.json')) {
+        const fileData = fs.readFileSync('./userVoiceLevels.json', 'utf-8');
+        // Eğer dosya içi boşsa hata vermemesi için kontrol et
+        if (fileData.trim()) {
+            const jsonData = JSON.parse(fileData);
+            // Array formatındaki veriyi Map protokolüne çevirerek yükle
+            for (const [key, value] of jsonData) {
+                userVoiceLevels.set(key, value);
+            }
+        }
+    } else {
+        // Dosya yoksa boş bir dizi ile oluştur
+        fs.writeFileSync('./userVoiceLevels.json', JSON.stringify([]));
+    }
+} catch (error) {
+    console.error("userVoiceLevels.json yüklenirken hata oluştu:", error);
+}
+
 
 const OWNER_ID = "994985345550659614";
 const sansCooldown = new Map();
