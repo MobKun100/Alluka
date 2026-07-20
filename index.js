@@ -294,6 +294,7 @@ const pkSettingsMap = loadData(pkSettingsFile);
 const hbEngelMap = loadData(hbEngelFile);
 const levelRolesMap = loadData(levelRolesFile);
 const ytSettingsMap = loadData(ytSettingsFile);
+const voiceLevelsMap = LoadData(voiceLevelsFile);
 
 // RAM-only
 const voiceSessions = new Map();
@@ -320,6 +321,7 @@ setInterval(() => {
   saveData(levelRolesFile, levelRolesMap);
   saveData(ytSettingsFile, ytSettingsMap);
   saveData(userSquadsFile, userSquads);
+  saveData(voiceLevelsFile, voiceLevelsMap);
 
 }, 30000);
 
@@ -341,6 +343,7 @@ function saveAll() {
   saveData(levelRolesFile, levelRolesMap);
   saveData(ytSettingsFile, ytSettingsMap);
   saveData(userSquadsFile, userSquads);
+  saveData(voiceLevelsFile, voiceLevels);
 }
 process.on("SIGINT", () => {
   saveAll();
@@ -1513,17 +1516,23 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
   // Ses durumu değiştiğinde (voiceStateUpdate)
 // Örnek: Kullanıcı sesten çıktığında veya her X dakikada bir tetiklendiğinde:
-const key = `${oldState.guild.id}_${oldState.id}`; // veya newState
+// 1. Veriyi çek (Yoksa varsayılan obje oluştur)
 let voiceData = userVoiceLevels.get(key) || { voiceXp: 0, voiceLevel: 1 };
 
-// Seste kaldığı süreye göre XP hesapla ve ekle (Örn: +10 XP)
-voiceData.voiceXp += 10; 
+// 2. XP'yi artır
+voiceData.voiceXp += 10; // Kazanılan XP miktarı
 
-// Ses Level atlama kontrolü
+// 3. Level atlama kontrolü (İsteğe bağlı)
 if (voiceData.voiceXp >= voiceData.voiceLevel * 100) {
     voiceData.voiceLevel += 1;
-    // İstersen sese özel bir kanala tebrik mesajı atabilirsin
 }
+
+// 4. İŞTE BURASI ÇOK ÖNEMLİ: Güncellenen veriyi haritaya geri yaz!
+userVoiceLevels.set(key, voiceData);
+
+// 5. JSON dosyasına kalıcı olarak kaydet!
+fs.writeFileSync('./userVoiceLevels.json', JSON.stringify(Array.from(userVoiceLevels.entries()), null, 2));
+
 
 
   // Durum 1: Kullanıcı bir ses kanalına katıldı
@@ -1700,40 +1709,23 @@ client.on("messageDelete", (msg) => {
 
 // ── Ana mesaj dinleyicisi ─────────────────────────────────────────────────────
 // ⏱️ Cooldown (Bekleme Süresi) Hafızası
-// Not: Bu satırı index.js içinde messageCreate olayının DIŞINA, en üst kısımlara koyabilirsin.
 const cooldowns = new Map();
 
-// Mesaj başına XP ekleme mantığı
-// Kodunun üst kısımlarında bu satırı bul ve tam olarak bu şekilde değiştir:
 client.on('messageCreate', async (message) => {
   if (message.author.bot || !message.guild) return;
 
   const userId = message.author.id;
   const guildId = message.guild.id;
-  // Mesaj gelince tetiklenen yer (messageCreate)
-// Mesaj gelince tetiklenen yer (messageCreate)
-const key = `${message.guild.id}_${message.author.id}`;
-let textData = userLevels.get(key) || { xp: 0, level: 1 };
-const ud = userLevels.get(key) || { xp: 0, level: 1 };
+  const key = `${guildId}_${userId}`;
 
-textData.xp += 5; // Her mesajda 5 XP verelim (senin kendi değerin neyse onu yaz)
-
-// Level atlama kontrolü (örnek: her 100 XP'de bir level)
-if (textData.xp >= textData.level * 100) {
-    textData.level += 1;
-    message.channel.send(`Tebrikler ${message.author}! Yazı seviyen **${textData.level}** oldu! 🎉`);
-}
-
-// Haritaya geri kaydet ve JSON'a yaz
-userLevels.set(key, textData);
-saveData(); // Chat JSON'ını kaydeden kendi fonksiyonun
-
+  // Veriyi haritadan çek, yoksa varsayılan değerleri ata
+  const ud = userLevels.get(key) || { chatXp: 0, chatLevel: 1 };
 
   // Güvenlik: Eğer alt kırılımlar eksikse tamamla
   if (ud.chatXp === undefined) ud.chatXp = 0;
   if (ud.chatLevel === undefined) ud.chatLevel = 1;
 
-  // Mesaj başına rastgele XP ekle
+  // Mesaj başına rastgele XP ekle (15 ile 25 arası rastgele)
   const xpToAdd = Math.floor(Math.random() * 10) + 15;
   ud.chatXp += xpToAdd;
 
@@ -1747,17 +1739,20 @@ saveData(); // Chat JSON'ını kaydeden kendi fonksiyonun
     const coinReward = ud.chatLevel * 150; 
     addCoins(userId, guildId, coinReward);
 
-    // Düzelttiğim Kısım: Belirttiğin seviye kanalına afilli embed mesajı gönderir
+    // Belirttiğin özel seviye kanalına afilli embed mesajı gönderir (Chate spam atmaz)
     await sendLevelUpMessage(message.member, ud.chatLevel, coinReward);
   }
 
-  // Veriyi haritaya geri kaydet
+  // Güncellenen veriyi haritaya geri kaydet
   userLevels.set(key, ud);
+
+  // JSON dosyasına kalıcı olarak yazdır (saveData fonksiyonunu çağırıyoruz)
+  saveData(userLevels, './userLevels.json'); 
 
   // Mesaj istatistiğini kaydet (Global)
   addMessageStat(userId, guildId);
 
-  // Düzelttiğim Kısım: guildId eksikti, eklendi! Artık HB tıkır tıkır yüklenir.
+  // Rastgele coin kazanma şansı (%5 ihtimal)
   if (Math.random() < 0.05) {
     const rastgeleCoin = Math.floor(Math.random() * 10) + 1;
     addCoins(userId, guildId, rastgeleCoin);
@@ -1775,7 +1770,7 @@ saveData(); // Chat JSON'ını kaydeden kendi fonksiyonun
 
   // 🛡️ 2 SANİYE COOLDOWN SİSTEMİ
   const simdi = Date.now();
-  const cooldownSuresi = 2000; // Milisaniye cinsinden 2 saniye
+  const cooldownSuresi = 2000; 
 
   if (cooldowns.has(userId)) {
     const bitisZamani = cooldowns.get(userId) + cooldownSuresi;
