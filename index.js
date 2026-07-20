@@ -1635,7 +1635,8 @@ client.on("messageDelete", (msg) => {
 const cooldowns = new Map();
 
 // Mesaj başına XP ekleme mantığı
-client.on('messageCreate', async (message) => {
+// Kodunun üst kısımlarında bu satırı bul ve tam olarak bu şekilde değiştir:
+client.on('messageCreate', async (message) => { 
     if (message.author.bot || !message.guild) return;
 
     const userId = message.author.id;
@@ -3328,151 +3329,136 @@ if (Math.random() < 0.05) {
 
   // ── PROFİL (Canvas) ────────────────────────────────────────────────────────
   if (command === "profil") {
-  // Komutun en başında fonksiyonu async bir kapsayıcıya alıyoruz veya eventin kendisini async yapıyoruz.
-  // Eğer dışarıdaki event 'async' değilse, içeride anlık bir async fonksiyon (IIFE) çalıştırabiliriz:
-  
-  (async () => {
-    try {
-      const hedefKullanici = message.mentions.users.first() || message.author;
-      const userData = getUserData(hedefKullanici.id);
+  const hedefKullanici = message.mentions.users.first() || message.author;
+  const userData = getUserData(hedefKullanici.id) || {};
 
-      // Bahsettiğin hata veren animasyon/yükleniyor mesajı satırı artık hata vermez:
-      const animationMsg = await message.channel.send({ 
-        content: "📊 Profil kartı hazırlanıyor, lütfen bekleyin... ✦" 
-      });
+  // Ana event artık async olduğu için bu satır KESİNLİKLE hata vermez:
+  const animationMsg = await message.channel.send({ content: "📊 Profil kartı hazırlanıyor... ✦" });
 
-      // Canvas boyutlarını belirle (Geniş profil formatı)
-      const canvas = createCanvas(900, 300);
-      const ctx = canvas.getContext('2d');
+  // Canvas boyutlarını belirle
+  const canvas = createCanvas(900, 300);
+  const ctx = canvas.getContext('2d');
 
-      // 1. Arka Plan Resmi (Kullanıcının Bannerını Discord API'den çekme)
-      let bannerUrl = null;
-      try {
-        const rest = new REST({ version: '10' }).setToken(process.env.TOKEN || client.token);
-        const userRes = await rest.get(Routes.user(hedefKullanici.id));
-        if (userRes.banner) {
-          bannerUrl = `https://cdn.discordapp.com/banners/${hedefKullanici.id}/${userRes.banner}.png?size=1024`;
-        }
-      } catch (err) {
-        console.log("Banner çekilirken hata oluştu, varsayılan renk kullanılacak.");
-      }
-
-      if (bannerUrl) {
-        const bannerImg = await loadImage(bannerUrl);
-        ctx.drawImage(bannerImg, 0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else {
-        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        grad.addColorStop(0, '#0f0c20');
-        grad.addColorStop(1, '#15102a');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      // İnce mor dış çerçeve çizgisi
-      ctx.strokeStyle = '#6a1b9a';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-
-      // 2. Kullanıcı Adı ve Unvanı Yazma
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 36px sans-serif';
-      ctx.fillText(hedefKullanici.username, 270, 75);
-
-      ctx.fillStyle = '#8e24aa';
-      ctx.font = '20px sans-serif';
-      ctx.fillText('✦ Sokak Şövalyesi', 270, 105); 
-
-      // Matematiksel Değerler ve Fallback (Veri yoksa çökmesin diye 0 ve 1 verdik)
-      const reqChatXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData?.chatLevel || 1) : ((userData?.chatLevel || 1) * 500);
-      const reqVoiceXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData?.voiceLevel || 1) : ((userData?.voiceLevel || 1) * 600);
-
-      const chatYuzde = Math.min((userData?.chatXp || 0) / reqChatXp, 1);
-      const voiceYuzde = Math.min((userData?.voiceXp || 0) / reqVoiceXp, 1);
-
-      // 3. MESAJ SEVİYESİ BARI VE METİNLERİ
-      ctx.fillStyle = '#b0bec5';
-      ctx.font = 'bold 18px sans-serif';
-      ctx.fillText('💬 MESAJ SEVİYESİ', 270, 150);
-
-      ctx.fillStyle = '#8e24aa';
-      ctx.fillText(`LVL ${userData?.chatLevel || 1}`, 750, 150);
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-      ctx.beginPath();
-      ctx.roundRect(270, 160, 550, 25, 12.5);
-      ctx.fill();
-
-      if (chatYuzde > 0) {
-        ctx.fillStyle = '#7b1fa2';
-        ctx.beginPath();
-        ctx.roundRect(270, 160, 550 * chatYuzde, 25, 12.5);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${(userData?.chatXp || 0).toLocaleString()} / ${reqChatXp.toLocaleString()} XP`, 270 + 275, 177);
-      ctx.textAlign = 'start'; 
-
-      // 4. SES SEVİYESİ BARI VE METİNLERİ
-      ctx.fillStyle = '#b0bec5';
-      ctx.font = 'bold 18px sans-serif';
-      ctx.fillText('🔊 SES SEVİYESİ', 270, 220);
-
-      ctx.fillStyle = '#8e24aa';
-      ctx.fillText(`LVL ${userData?.voiceLevel || 1}`, 750, 220);
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-      ctx.beginPath();
-      ctx.roundRect(270, 230, 550, 25, 12.5);
-      ctx.fill();
-
-      if (voiceYuzde > 0) {
-        ctx.fillStyle = '#7b1fa2';
-        ctx.beginPath();
-        ctx.roundRect(270, 230, 550 * voiceYuzde, 25, 12.5);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${(userData?.voiceXp || 0).toLocaleString()} / ${reqVoiceXp.toLocaleString()} XP`, 270 + 275, 247);
-      ctx.textAlign = 'start';
-
-      // 5. YUVARLAK AVATAR ÇİZİMİ
-      const avatarUrl = hedefKullanici.displayAvatarURL({ extension: 'png', size: 256 });
-      const avatarImg = await loadImage(avatarUrl);
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(avatarImg, 50, 60, 180, 180);
-      ctx.restore();
-
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
-      ctx.stroke();
-
-      // Dosyayı hazırla ve gönder
-      const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profil-karti.png' });
-      
-      // Önceki yükleniyor mesajını silip profil kartını atıyoruz
-      if (animationMsg.deletable) await animationMsg.delete().catch(() => null);
-      return message.reply({ files: [attachment] });
-
-    } catch (error) {
-      console.error("Profil komutunda hata meydana geldi:", error);
-      return message.reply("Profil kartı oluşturulurken bir hata oluştu.");
+  // 1. Banner Çekme İşlemi
+  let bannerUrl = null;
+  try {
+    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN || client.token);
+    const userRes = await rest.get(Routes.user(hedefKullanici.id));
+    if (userRes.banner) {
+      bannerUrl = `https://cdn.discordapp.com/banners/${hedefKullanici.id}/${userRes.banner}.png?size=1024`;
     }
-  })(); // Async sarmalayıcıyı burada kapatıp anında tetikliyoruz
+  } catch (err) {
+    console.log("Banner çekilirken hata oluştu, varsayılan renk kullanılacak.");
+  }
+
+  if (bannerUrl) {
+    const bannerImg = await loadImage(bannerUrl);
+    ctx.drawImage(bannerImg, 0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    grad.addColorStop(0, '#0f0c20');
+    grad.addColorStop(1, '#15102a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Çerçeve
+  ctx.strokeStyle = '#6a1b9a';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+  // İsim ve Unvan
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText(hedefKullanici.username, 270, 75);
+
+  ctx.fillStyle = '#8e24aa';
+  ctx.font = '20px sans-serif';
+  ctx.fillText('✦ Sokak Şövalyesi', 270, 105);
+
+  // Verilerin Matematiksel Hesaplamaları
+  const reqChatXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData.chatLevel || 1) : ((userData.chatLevel || 1) * 500);
+  const reqVoiceXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData.voiceLevel || 1) : ((userData.voiceLevel || 1) * 600);
+
+  const chatYuzde = Math.min((userData.chatXp || 0) / reqChatXp, 1);
+  const voiceYuzde = Math.min((userData.voiceXp || 0) / reqVoiceXp, 1);
+
+  // 3. MESAJ SEVİYESİ BARI
+  ctx.fillStyle = '#b0bec5';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('💬 MESAJ SEVİYESİ', 270, 150);
+
+  ctx.fillStyle = '#8e24aa';
+  ctx.fillText(`LVL ${userData.chatLevel || 1}`, 750, 150);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.beginPath();
+  ctx.roundRect(270, 160, 550, 25, 12.5);
+  ctx.fill();
+
+  if (chatYuzde > 0) {
+    ctx.fillStyle = '#7b1fa2';
+    ctx.beginPath();
+    ctx.roundRect(270, 160, 550 * chatYuzde, 25, 12.5);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${(userData.chatXp || 0).toLocaleString()} / ${reqChatXp.toLocaleString()} XP`, 270 + 275, 177);
+  ctx.textAlign = 'start';
+
+  // 4. SES SEVİYESİ BARI
+  ctx.fillStyle = '#b0bec5';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('🔊 SES SEVİYESİ', 270, 220);
+
+  ctx.fillStyle = '#8e24aa';
+  ctx.fillText(`LVL ${userData.voiceLevel || 1}`, 750, 220);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.beginPath();
+  ctx.roundRect(270, 230, 550, 25, 12.5);
+  ctx.fill();
+
+  if (voiceYuzde > 0) {
+    ctx.fillStyle = '#7b1fa2';
+    ctx.beginPath();
+    ctx.roundRect(270, 230, 550 * voiceYuzde, 25, 12.5);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${(userData.voiceXp || 0).toLocaleString()} / ${reqVoiceXp.toLocaleString()} XP`, 270 + 275, 247);
+  ctx.textAlign = 'start';
+
+  // 5. YUVARLAK AVATAR ÇİZİMİ
+  const avatarUrl = hedefKullanici.displayAvatarURL({ extension: 'png', size: 256 });
+  const avatarImg = await loadImage(avatarUrl);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(avatarImg, 50, 60, 180, 180);
+  ctx.restore();
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
+  ctx.stroke();
+
+  const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profil-karti.png' });
+  if (animationMsg.deletable) await animationMsg.delete().catch(() => null);
+  
+  return message.reply({ files: [attachment] });
 }
 
 
