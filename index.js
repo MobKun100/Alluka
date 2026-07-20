@@ -255,7 +255,6 @@ const pkSettingsMap = loadData(pkSettingsFile);
 const hbEngelMap = loadData(hbEngelFile);
 const levelRolesMap = loadData(levelRolesFile);
 const ytSettingsMap = loadData(ytSettingsFile);
-const voiceLevelsMap = LoadData(voiceLevelsFile);
 
 // RAM-only
 const voiceSessions = new Map();
@@ -282,7 +281,7 @@ setInterval(() => {
   saveData(levelRolesFile, levelRolesMap);
   saveData(ytSettingsFile, ytSettingsMap);
   saveData(userSquadsFile, userSquads);
-  saveData(voiceLevelsFile, voiceLevelsMap);
+  
 
 }, 30000);
 
@@ -304,7 +303,7 @@ function saveAll() {
   saveData(levelRolesFile, levelRolesMap);
   saveData(ytSettingsFile, ytSettingsMap);
   saveData(userSquadsFile, userSquads);
-  saveData(voiceLevelsFile, voiceLevels);
+  
 }
 process.on("SIGINT", () => {
   saveAll();
