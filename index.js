@@ -3248,8 +3248,18 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
     ctx.fillText(prof.bio || `#Yetkili Alımı Açık!`, 270, 105);
 
     // 4. Tekli İlerleme Çubuğu Hesaplaması (Mesaj Seviyesi)
-    const nextLevelXP = ud.level * 200; // Burayı kendi XP formülünüze göre değiştirebilirsiniz (Örn: 1600)
-    const progress = Math.min(ud.xp / nextLevelXP, 1);
+    // generateProfileCard içindeki bar hesaplama kısmını burayla değiştir:
+const currentLevel = ud.level || 1;
+const currentXP = ud.xp || 0;
+
+// Üstteki embed'in mantığı (Level ne olursa olsun sonraki seviye hep 200 XP istiyorsa):
+const nextLevelXP = 200; 
+
+// EĞER her seviyede gereken XP artsın istiyorsan (Örn: Level * 100):
+// const nextLevelXP = currentLevel * 100; 
+
+const progress = Math.min(currentXP / nextLevelXP, 1);
+
 
     // Başlık ve Seviye Bilgisi
     ctx.fillStyle = '#b5b5b5';
