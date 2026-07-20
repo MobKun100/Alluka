@@ -315,6 +315,40 @@ process.on("SIGTERM", () => {
 });
 //
 
+// Ses XP'si ekleyen fonksiyonun veya döngünün içerisindeki kayıt mantığı
+function addVoiceXP(userId, guildId, xpToAdd) {
+  const key = `${guildId}_${userId}`;
+  
+  // 1. Önce ortak haritadan (userLevels) mevcut veriyi çekiyoruz (Chat verileri kaybolmasın diye!)
+  let ud = userLevels.get(key) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
+
+  // Güvenli varsayılanları dolduruyoruz
+  if (ud.chatXp === undefined) ud.chatXp = ud.xp || 0;
+  if (ud.chatLevel === undefined) ud.chatLevel = ud.level || 1;
+  if (ud.voiceXp === undefined) ud.voiceXp = 0;
+  if (ud.voiceLevel === undefined) ud.voiceLevel = 1;
+
+  // 2. Sadece Ses XP'sini artırıyoruz (Chat verilerine dokunmuyoruz)
+  ud.voiceXp += xpToAdd;
+
+  // 3. Ses Seviye Kontrolü (Örn: Her seviye için Ses Seviyesi * 500 XP)
+  const reqVoiceXp = ud.voiceLevel * 500;
+  if (ud.voiceXp >= reqVoiceXp) {
+    ud.voiceXp -= reqVoiceXp;
+    ud.voiceLevel += 1;
+    
+    // Eğer ses seviyesi atlayınca log/mesaj atacaksan buraya ekleyebilirsin
+    console.log(`${userId} seste seviye atladı! Yeni Seviye: ${ud.voiceLevel}`);
+  }
+
+  // 4. GÜNCEL VERİYİ CHAT'İ EZMEDEN ORTAK HARİTAYA GERİ YAZIYORUZ
+  userLevels.set(key, ud);
+  
+  // Eski kaydetme fonksiyonunla diske yazıyoruz
+  saveData(userLevelsFile, userLevels);
+}
+
+
 
 // Kullanıcı verisini getiren veya yoksa oluşturan yardımcı fonksiyon
 function getUserData(userId) {
