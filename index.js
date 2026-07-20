@@ -1722,49 +1722,55 @@ client.on("messageDelete", (msg) => {
 const cooldowns = new Map();
 
 client.on('messageCreate', async (message) => {
-  // 1. GÜVENLİK KONTROLLERİ (En başta olmalı)
   if (message.author.bot || !message.guild) return;
 
   const userId = message.author.id;
   const guildId = message.guild.id;
   const key = `${guildId}_${userId}`;
 
-  // 2. VERİYİ ÇEK VE HAZIRLA
-  let ud = userLevels.get(key) || { chatXp: 0, chatLevel: 1 };
+  // 2. VERİYİ ÇEK VE ESKİ SAVE/LOAD SİSTEMİNE UYGUN HALE GETİR
+  let ud = userLevels.get(key) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
 
-  // Eğer objenin içi boş geldiyse veya eski taslaktan kaldıysa tamamla
-  if (ud.chatXp === undefined) ud.chatXp = 0;
-  if (ud.chatLevel === undefined) ud.chatLevel = 1;
+  // Eğer objede eksik alanlar varsa güvenli varsayılanlar atıyoruz
+  if (ud.chatXp === undefined) ud.chatXp = ud.xp || 0; // Eski sürüm uyumluluğu için
+  if (ud.chatLevel === undefined) ud.chatLevel = ud.level || 1;
+  if (ud.voiceXp === undefined) ud.voiceXp = 0;
+  if (ud.voiceLevel === undefined) ud.voiceLevel = 1;
 
-  // 3. XP EKLEME VE SEVİYE KONTROLÜ (Prefix kontrolünden ÖNCE olmalı ki normal mesajlarda da XP gelsin!)
-  const xpToAdd = Math.floor(Math.random() * 10) + 15;
-  ud.chatXp += xpToAdd;
+  // 3. XP EKLEME VE SEVİYE KONTROLÜ
+  // Sadece komut olmayan normal mesajlardan XP kazanılması için prefix kontrolünden önceden çalışır
+  if (!message.content.startsWith(prefix)) {
+    const xpToAdd = Math.floor(Math.random() * 10) + 15;
+    ud.chatXp += xpToAdd;
 
-  const reqChatXp = ud.chatLevel * 500;
-  if (ud.chatXp >= reqChatXp) {
-    ud.chatXp -= reqChatXp;
-    ud.chatLevel += 1;
+    // Seviye atlamak için gereken XP (Seviye * 500)
+    const reqChatXp = ud.chatLevel * 500;
+    if (ud.chatXp >= reqChatXp) {
+      ud.chatXp -= reqChatXp;
+      ud.chatLevel += 1;
 
-    // Seviye ödülü
-    const coinReward = ud.chatLevel * 150; 
-    if (typeof addCoins === 'function') addCoins(userId, guildId, coinReward);
+      // Eski uyumluluk anahtarlarını da güncelliyoruz ki diğer sistemler tetiklenirken çökmesin
+      ud.level = ud.chatLevel;
+      ud.xp = ud.chatXp;
 
-    // Seviye kanalına mesaj atma fonksiyonun
-    if (typeof sendLevelUpMessage === 'function') {
-        await sendLevelUpMessage(message.member, ud.chatLevel, coinReward).catch(e => console.error(e));
+      // Seviye ödülü HB
+      const coinReward = ud.chatLevel * 150; 
+      if (typeof addCoins === 'function') addCoins(userId, guildId, coinReward);
+
+      // Seviye atlama mesajını kanala gönder
+      if (typeof sendLevelUpMessage === 'function') {
+          await sendLevelUpMessage(message.member, ud.chatLevel, coinReward).catch(e => console.error(e));
+      }
     }
+
+    // 4. VERİYİ ESKİ SİSTEM GİBİ HARİTAYA KAYDET
+    userLevels.set(key, ud);
+    saveData(userLevelsFile, userLevels); // Eski saveData fonksiyonunu tetikliyoruz
   }
 
-  // 4. VERİYİ HAFIZAYA VE JSON DOSYASINA YAZ (Kesin çalışan direkt yöntem)
-  userLevels.set(key, ud);
-  try {
-      fs.writeFileSync('./userLevels.json', JSON.stringify(Array.from(userLevels.entries()), null, 2));
-  } catch (error) {
-      console.error("Chat JSON güncellenirken hata:", error);
-  }
-
-  // İstatistik kaydı
+  // İstatistik kaydı ve geri kalan oto cevap/prefix kontrolleri buradan itibaren aynen devam eder...
   if (typeof addMessageStat === 'function') addMessageStat(userId, guildId);
+
 
   // Rastgele coin ödülü (%5 şans)
   if (Math.random() < 0.05 && typeof addCoins === 'function') {
@@ -3424,33 +3430,31 @@ client.on('messageCreate', async (message) => {
   }
 
   // ── PROFİL (Canvas) ────────────────────────────────────────────────────────
-    if (command === "profil") {
-    message.channel.send({ content: "✦ Profil kartı hazırlanıyor..." }).then(async (animationMsg) => {
-      try {
-        // if (command === "profil") kısmının içi:
-const hedefKullanici = message.mentions.users.first() || message.author;
-const userId = hedefKullanici.id;
-const guildId = message.guild.id;
-const key = `${guildId}_${userId}`;
+   if (command === "profil") {
+  message.channel.send({ content: "✦ Profil kartı hazırlanıyor..." }).then(async (animationMsg) => {
+    try {
+      const hedefKullanici = message.mentions.users.first() || message.author;
+      const userId = hedefKullanici.id;
+      const guildId = message.guild.id;
+      const key = `${guildId}_${userId}`;
 
-// 1. Yeni tanımladığın iki haritadan verileri ayrı ayrı çek
-const textData = userLevels.get(key) || { xp: 0, level: 1 };
-const voiceData = userVoiceLevels.get(key) || { voiceXp: 0, voiceLevel: 1 };
+      // 1. userLevels haritasından güncel entegre veriyi çekiyoruz
+      const dbData = userLevels.get(key) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
 
-// 2. Çektiğin bu verileri tek bir "userData" objesinde birleştir!
-// Böylece Canvas altındaki eski kodların (userData.xp gibi) patlamasını engelleriz.
-const userData = {
-    xp: textData.xp,            // Eski chat kodların için
-    level: textData.level,      // Eski chat kodların için
-    chatXp: textData.xp,        // İleride detaylandırmak istersen diye alternatif
-    chatLevel: textData.level,
-    voiceXp: voiceData.voiceXp, // Yeni ses XP verisi
-    voiceLevel: voiceData.voiceLevel // Yeni ses Level verisi
-};
+      // 2. Eksik parametre kalmaması için nesneyi Canvas çizim motoruna hazır hale getiriyoruz
+      const userData = {
+          chatXp: dbData.chatXp !== undefined ? dbData.chatXp : (dbData.xp || 0),
+          chatLevel: dbData.chatLevel !== undefined ? dbData.chatLevel : (dbData.level || 1),
+          voiceXp: dbData.voiceXp || 0,
+          voiceLevel: dbData.voiceLevel || 1
+      };
 
-// Kanvas kurulumu
-const canvas = createCanvas(900, 300);
-const ctx = canvas.getContext('2d');
+      // Kanvas kurulumu (900x300)
+      const canvas = createCanvas(900, 300);
+      const ctx = canvas.getContext('2d');
+
+      // BURADAN SONRASI (Canvas çizim kodları, arka plan ve avatar işlemleri) MEVCUT KODUNLA BİREBİR AYNI KALACAK...
+
 
 
         // Kodunun devamında Canvas ile çizim yaparken bu değişkenleri kullanabilirsin:
