@@ -3397,22 +3397,31 @@ client.on('messageCreate', async (message) => {
     if (command === "profil") {
     message.channel.send({ content: "✦ Profil kartı hazırlanıyor..." }).then(async (animationMsg) => {
       try {
-        const hedefKullanici = message.mentions.users.first() || message.author;
-        const userId = hedefKullanici.id;
-        const guildId = message.guild.id;
-        const key = `${guildId}_${userId}`;
+        // if (command === "profil") kısmının içi:
+const hedefKullanici = message.mentions.users.first() || message.author;
+const userId = hedefKullanici.id;
+const guildId = message.guild.id;
+const key = `${guildId}_${userId}`;
 
-        // 1. Yazı (Chat) Seviyesi Verilerini Çek
-        // Eğer veri yoksa varsayılan olarak xp: 0, level: 1 belirler
-        const textData = userLevels.get(key) || { xp: 0, level: 1 };
+// 1. Yeni tanımladığın iki haritadan verileri ayrı ayrı çek
+const textData = userLevels.get(key) || { xp: 0, level: 1 };
+const voiceData = userVoiceLevels.get(key) || { voiceXp: 0, voiceLevel: 1 };
 
-        // 2. Ses (Voice) Seviyesi Verilerini Çek
-        // userVoiceLevels adında yeni oluşturduğun Map'ten veriyi alır
-        const voiceData = userVoiceLevels.get(key) || { voiceXp: 0, voiceLevel: 1 };
+// 2. Çektiğin bu verileri tek bir "userData" objesinde birleştir!
+// Böylece Canvas altındaki eski kodların (userData.xp gibi) patlamasını engelleriz.
+const userData = {
+    xp: textData.xp,            // Eski chat kodların için
+    level: textData.level,      // Eski chat kodların için
+    chatXp: textData.xp,        // İleride detaylandırmak istersen diye alternatif
+    chatLevel: textData.level,
+    voiceXp: voiceData.voiceXp, // Yeni ses XP verisi
+    voiceLevel: voiceData.voiceLevel // Yeni ses Level verisi
+};
 
-        // Kanvas kurulumu
-        const canvas = createCanvas(900, 300);
-        const ctx = canvas.getContext('2d');
+// Kanvas kurulumu
+const canvas = createCanvas(900, 300);
+const ctx = canvas.getContext('2d');
+
 
         // Kodunun devamında Canvas ile çizim yaparken bu değişkenleri kullanabilirsin:
         // Yazı için: textData.level ve textData.xp
