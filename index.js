@@ -1661,11 +1661,11 @@ client.on('messageCreate', async (message) => {
 
     // Güncel veriyi kaydet
     await db.set(`stats_${guildId}_${userId}`, userStats);
-});
+
 
 
 // Mesaj istatistiğini kaydet (Global)
-addMessageStat(message.author.id);
+addMessageStat(message.author.id, message.guild.id);
 
 // %5 şansla mesaj atarken ekstra 1-10 arası Coin/HB düşürme mantığı
 if (Math.random() < 0.05) {
