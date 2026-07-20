@@ -3193,30 +3193,29 @@ client.on("messageCreate", async (message) => {
 
   // ── PROFİL (Canvas) ────────────────────────────────────────────────────────
 
-const { createCanvas, loadImage } = require('@napi-rs/canvas'); // veya 'canvas'
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
-async function generateProfileCard(target, msgData, voiceData, coins, prof, bannerUrl, avatarUrl) {
-    // Görseldeki standart geniş ekran oranına göre canvas boyutu (Genişlik: 900, Yükseklik: 300)
-    const canvas = createCanvas(900, 300);
+async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl) {
+    // Ses barı kalktığı için yüksekliği 260px olarak optimize ettik
+    const canvas = createCanvas(900, 260);
     const ctx = canvas.getContext('2d');
 
-    // 1. Arka Plan: Kullanıcının Banner Resmi
+    // 1. Arka Plan: Banner Resmi
     try {
         const bannerImg = await loadImage(bannerUrl);
         ctx.drawImage(bannerImg, 0, 0, canvas.width, canvas.height);
     } catch {
-        // Banner yüklenemezse koyu bir arka plan çiz
         ctx.fillStyle = '#111214';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    // 2. Yarı Saydam Koyu Panel ve Mor Çerçeve
+    // 2. Yarı Saydam Koyu Panel ve Oval Mor Çerçeve
     const padding = 20;
     const rectX = padding;
     const rectY = padding;
     const rectWidth = canvas.width - (padding * 2);
     const rectHeight = canvas.height - (padding * 2);
-    const cornerRadius = 30; // Görseldeki gibi oval köşeler
+    const cornerRadius = 25;
 
     ctx.save();
     ctx.beginPath();
@@ -3231,100 +3230,62 @@ async function generateProfileCard(target, msgData, voiceData, coins, prof, bann
     ctx.quadraticCurveTo(rectX, rectY, rectX + cornerRadius, rectY);
     ctx.closePath();
 
-    // Panelin içini siyah/koyu gri transparan yapıyoruz
     ctx.fillStyle = 'rgba(15, 15, 15, 0.75)';
     ctx.fill();
 
-    // Görseldeki mor dış kontür (Stroke)
     ctx.strokeStyle = '#6a259c'; 
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.restore();
 
-    // 3. Kullanıcı Adı ve Bio/Rol Yazısı
+    // 3. Kullanıcı Adı ve Bio Metinleri
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 36px sans-serif';
-    ctx.fillText(target.user.username, 270, 85);
+    ctx.fillText(target.user.username, 270, 75);
 
-    // Altındaki mor/pembe alt yazı (Bio veya Rol ismi)
     ctx.fillStyle = '#a15cd1';
     ctx.font = '500 18px sans-serif';
-    ctx.fillText(prof.bio || `#Yetkili Alımı Açık!`, 270, 115);
+    ctx.fillText(prof.bio || `#Yetkili Alımı Açık!`, 270, 105);
 
-    // İLERLEME ÇUBUKLARI İÇİN HESAPLAMALAR
-    // Mesaj XP Barı
-    const msgNextLevelXP = msgData.level * 200; // Seviye başına gereken XP formülün neyse onu yazabilirsin
-    const msgProgress = Math.min(msgData.xp / msgNextLevelXP, 1);
-    
-    // Ses XP Barı
-    const voiceNextLevelXP = voiceData.level * 200;
-    const voiceProgress = Math.min(voiceData.xp / voiceNextLevelXP, 1);
+    // 4. Tekli İlerleme Çubuğu Hesaplaması (Mesaj Seviyesi)
+    const nextLevelXP = ud.level * 200; // Burayı kendi XP formülünüze göre değiştirebilirsiniz (Örn: 1600)
+    const progress = Math.min(ud.xp / nextLevelXP, 1);
 
-    // 4. MESAJ SEVİYESİ BAR ALANI
+    // Başlık ve Seviye Bilgisi
     ctx.fillStyle = '#b5b5b5';
-    ctx.font = 'bold 14px sans-serif';
+    ctx.font = 'bold 15px sans-serif';
     ctx.fillText('MESAJ SEVİYESİ', 270, 150);
 
-    ctx.fillStyle = '#444';
-    ctx.font = '14px sans-serif';
-    ctx.fillText(`LVL ${msgData.level}`, 680, 150);
+    ctx.fillStyle = '#6a259c'; // Sağdaki seviye numarasını mor tonda belirginleştiriyoruz
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText(`LVL ${ud.level}`, 690, 150);
 
-    // Arka plan çubuğu (Koyu boş bar)
+    // Boş Bar (Arka Plan)
     ctx.beginPath();
-    ctx.roundRect(270, 160, 480, 22, 11);
+    ctx.roundRect(270, 162, 480, 24, 12);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.fill();
 
-    // Ön plan çubuğu (Dolu mor bar)
-    if (msgProgress > 0) {
+    // Dolu Bar (Ön Plan Mor Renk)
+    if (progress > 0) {
         ctx.beginPath();
-        ctx.roundRect(270, 160, 480 * msgProgress, 22, 11);
+        ctx.roundRect(270, 162, 480 * progress, 24, 12);
         ctx.fillStyle = '#8a33cc';
         ctx.fill();
     }
 
-    // Bar içi metni
+    // Bar İçi Yazısı (Mevcut XP / Gerekli XP)
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px sans-serif';
+    ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${msgData.xp.toLocaleString()} / ${msgNextLevelXP.toLocaleString()} XP`, 270 + (480 / 2), 176);
-
-    // 5. SES SEVİYESİ BAR ALANI
-    ctx.textAlign = 'left'; // Hizalamayı sıfırla
-    ctx.fillStyle = '#b5b5b5';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText('SES SEVİYESİ', 270, 215);
-
-    ctx.fillStyle = '#444';
-    ctx.font = '14px sans-serif';
-    ctx.fillText(`LVL ${voiceData.level}`, 680, 215);
-
-    // Arka plan çubuğu
-    ctx.beginPath();
-    ctx.roundRect(270, 225, 480, 22, 11);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.fill();
-
-    // Ön plan çubuğu
-    if (voiceProgress > 0) {
-        ctx.beginPath();
-        ctx.roundRect(270, 225, 480 * voiceProgress, 22, 11);
-        ctx.fillStyle = '#8a33cc';
-        ctx.fill();
-    }
-
-    // Bar içi metni
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${voiceData.xp.toLocaleString()} / ${voiceNextLevelXP.toLocaleString()} XP`, 270 + (480 / 2), 241);
+    ctx.fillText(`${ud.xp.toLocaleString()} / ${nextLevelXP.toLocaleString()} XP`, 270 + (480 / 2), 179);
 
     // Hizalamayı sola geri çekiyoruz
     ctx.textAlign = 'left';
 
-    // 6. Yuvarlak Avatar Çizimi
+    // 5. Yuvarlak Avatar Çizimi
     const avatarX = 145;
-    const avatarY = 150;
+    const avatarY = 130; // Yeni panel yüksekliğine göre ortalandı
     const avatarRadius = 65;
 
     ctx.save();
@@ -3337,19 +3298,18 @@ async function generateProfileCard(target, msgData, voiceData, coins, prof, bann
         const avatarImg = await loadImage(avatarUrl);
         ctx.drawImage(avatarImg, avatarX - avatarRadius, avatarY - avatarRadius, avatarRadius * 2, avatarRadius * 2);
     } catch {
-        // Avatar yüklenemezse gri düz renk bas
         ctx.fillStyle = '#5865F2';
         ctx.fill();
     }
     ctx.restore();
 
-    // 7. Durum (Presence) Noktası (Görseldeki kırmızı yuvarlak)
+    // 6. Durum (Presence) Noktası
     ctx.beginPath();
-    ctx.arc(200, 200, 14, 0, Math.PI * 2, true);
+    ctx.arc(195, 175, 14, 0, Math.PI * 2, true);
     ctx.closePath();
-    ctx.fillStyle = '#f23f43'; // DND / Rahatsız Etmeyin kırmızısı (İsteğe göre target.presence kontrolüyle dinamik yapılabilir)
+    ctx.fillStyle = '#f23f43'; 
     ctx.fill();
-    // Etrafındaki siyah boşluk kontürü
+    
     ctx.strokeStyle = '#111214';
     ctx.lineWidth = 4;
     ctx.stroke();
@@ -3359,14 +3319,13 @@ async function generateProfileCard(target, msgData, voiceData, coins, prof, bann
 
 
 
+
   if (command === "profil") {
     const target = message.mentions.members.first() || message.member;
     const key = `${message.guild.id}_${target.id}`;
     
-    // Mesaj ve Ses seviye verilerini çek (Veritabanı yapına göre burayı düzenleyebilirsin)
-    const msgData = userLevels.get(key) || { xp: 0, level: 1 };
-    const voiceData = userVoiceLevels?.get(key) || { xp: 0, level: 1 }; // Eğer ses seviyesi yoksa varsayılan obje
-    
+    // Sadece mesaj seviye verisini çekiyoruz
+    const ud = userLevels.get(key) || { xp: 0, level: 1 };
     const coins = getCoins(target.id, message.guild.id);
     const prof = getProfile(target.id, message.guild.id);
 
@@ -3374,12 +3333,12 @@ async function generateProfileCard(target, msgData, voiceData, coins, prof, bann
 
     try {
       const fetchedUser = await target.user.fetch();
-      // Banner yoksa varsayılan koyu bir arka plan resmi veya renk kullanabilmek için null kontrolü yapıyoruz
+      // Banner yoksa varsayılan koyu bir resim linki koyabilirsiniz
       const bannerUrl = fetchedUser.bannerURL({ extension: 'png', size: 1024 }) || "https://i.ibb.co/colors-fallback.png"; 
       const avatarUrl = target.user.displayAvatarURL({ extension: 'png', size: 256 });
 
-      // Tüm verileri ve avatar/banner linklerini fonksiyona gönderiyoruz
-      const imageBuffer = await generateProfileCard(target, msgData, voiceData, coins, prof, bannerUrl, avatarUrl);
+      // Güncellenmiş fonksiyona verileri gönderiyoruz
+      const imageBuffer = await generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl);
 
       const attachment = new AttachmentBuilder(imageBuffer, { name: "profil.png" });
       await loading.delete().catch(() => {});
@@ -3390,18 +3349,16 @@ async function generateProfileCard(target, msgData, voiceData, coins, prof, bann
       await loading.delete().catch(() => {});
 
       // Fallback Embed
-      const fetchedUser = await target.user.fetch();
       return message.channel.send({
         embeds: [
           new EmbedBuilder()
             .setColor(prof.color || "#5865F2")
             .setTitle(`${prof.activeBadge ? prof.activeBadge + " " : ""}${target.user.tag} — Profil`)
-            .setImage(fetchedUser.bannerURL({ dynamic: true, size: 512 }))
             .setThumbnail(target.user.displayAvatarURL({ dynamic: true, size: 256 }))
             .setDescription(`*${prof.bio || "Bio yok"}*`)
             .addFields(
-              { name: "💬 Mesaj Seviyesi", value: `Lvl ${msgData.level}`, inline: true },
-              { name: "🔊 Ses Seviyesi", value: `Lvl ${voiceData.level}`, inline: true },
+              { name: "⭐ Level", value: `${ud.level}`, inline: true },
+              { name: "✨ XP", value: `${ud.xp}/${ud.level * 100}`, inline: true },
               { name: "💰 HB", value: formatCoins(coins), inline: true }
             )
             .setTimestamp(),
@@ -3409,6 +3366,7 @@ async function generateProfileCard(target, msgData, voiceData, coins, prof, bann
       });
     }
 }
+
 
 
 
