@@ -1722,65 +1722,67 @@ client.on("messageDelete", (msg) => {
 const cooldowns = new Map();
 
 client.on('messageCreate', async (message) => {
+  // 1. GÜVENLİK KONTROLLERİ (En başta olmalı)
   if (message.author.bot || !message.guild) return;
 
   const userId = message.author.id;
   const guildId = message.guild.id;
   const key = `${guildId}_${userId}`;
 
-  // Veriyi haritadan çek, yoksa varsayılan değerleri ata
-  const ud = userLevels.get(key) || { chatXp: 0, chatLevel: 1 };
+  // 2. VERİYİ ÇEK VE HAZIRLA
+  let ud = userLevels.get(key) || { chatXp: 0, chatLevel: 1 };
 
-  // Güvenlik: Eğer alt kırılımlar eksikse tamamla
+  // Eğer objenin içi boş geldiyse veya eski taslaktan kaldıysa tamamla
   if (ud.chatXp === undefined) ud.chatXp = 0;
   if (ud.chatLevel === undefined) ud.chatLevel = 1;
 
-  // Mesaj başına rastgele XP ekle (15 ile 25 arası rastgele)
+  // 3. XP EKLEME VE SEVİYE KONTROLÜ (Prefix kontrolünden ÖNCE olmalı ki normal mesajlarda da XP gelsin!)
   const xpToAdd = Math.floor(Math.random() * 10) + 15;
   ud.chatXp += xpToAdd;
 
-  // Seviye atlama kontrolü (Her seviye için: seviye * 500 XP)
   const reqChatXp = ud.chatLevel * 500;
   if (ud.chatXp >= reqChatXp) {
     ud.chatXp -= reqChatXp;
     ud.chatLevel += 1;
 
-    // Seviye atlayınca verilecek HB ödülü
+    // Seviye ödülü
     const coinReward = ud.chatLevel * 150; 
-    addCoins(userId, guildId, coinReward);
+    if (typeof addCoins === 'function') addCoins(userId, guildId, coinReward);
 
-    // Belirttiğin özel seviye kanalına afilli embed mesajı gönderir (Chate spam atmaz)
-    await sendLevelUpMessage(message.member, ud.chatLevel, coinReward);
+    // Seviye kanalına mesaj atma fonksiyonun
+    if (typeof sendLevelUpMessage === 'function') {
+        await sendLevelUpMessage(message.member, ud.chatLevel, coinReward).catch(e => console.error(e));
+    }
   }
 
-  // Güncellenen veriyi haritaya geri kaydet
+  // 4. VERİYİ HAFIZAYA VE JSON DOSYASINA YAZ (Kesin çalışan direkt yöntem)
   userLevels.set(key, ud);
-  // userLevels.set(key, ud); satırının hemen altına bunu yapıştır:
-fs.writeFileSync('./userLevels.json', JSON.stringify(Array.from(userLevels.entries()), null, 2));
+  try {
+      fs.writeFileSync('./userLevels.json', JSON.stringify(Array.from(userLevels.entries()), null, 2));
+  } catch (error) {
+      console.error("Chat JSON güncellenirken hata:", error);
+  }
 
+  // İstatistik kaydı
+  if (typeof addMessageStat === 'function') addMessageStat(userId, guildId);
 
-  // JSON dosyasına kalıcı olarak yazdır (saveData fonksiyonunu çağırıyoruz)
-
-  // Mesaj istatistiğini kaydet (Global)
-  addMessageStat(userId, guildId);
-
-  // Rastgele coin kazanma şansı (%5 ihtimal)
-  if (Math.random() < 0.05) {
+  // Rastgele coin ödülü (%5 şans)
+  if (Math.random() < 0.05 && typeof addCoins === 'function') {
     const rastgeleCoin = Math.floor(Math.random() * 10) + 1;
     addCoins(userId, guildId, rastgeleCoin);
   }
 
-  // 💬 Prefix Olmayan Otomatik Cevaplar
+  // 5. OTO CEVAPLAR VE PREFİX KONTROLÜ (XP eklendikten SONRA gelmeli)
   if (!message.content.startsWith(prefix)) {
     const msg = message.content.toLowerCase();
     if (msg === "sa") return message.reply("as hg knk");
     if (msg === "selam") return message.reply("selam canım nasılsın?");
     if (msg === "günaydın") return message.reply("günaydın şampiyon ☀️");
     if (msg === "iyi geceler") return message.reply("tatlı rüyalar 😴");
-    return;
+    return; // Komut değilse burada dursun, aşağıya (komutlara) geçmesin
   }
 
-  // 🛡️ 2 SANİYE COOLDOWN SİSTEMİ
+  // 6. 2 SANİYE COOLDOWN SİSTEMİ (Sadece komutlar için geçerli)
   const simdi = Date.now();
   const cooldownSuresi = 2000; 
 
@@ -1798,6 +1800,8 @@ fs.writeFileSync('./userLevels.json', JSON.stringify(Array.from(userLevels.entri
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift()?.toLowerCase();
   if (!command) return;
+
+  // Bundan sonrası senin profil vb. if(command === "profil") blokların...
 
   // Bundan sonrası senin mevcut komutlarının if-else/switch blokları...
 
