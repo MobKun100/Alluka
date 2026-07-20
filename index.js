@@ -65,6 +65,17 @@ try {
     console.error("userVoiceLevels.json yüklenirken hata oluştu:", error);
 }
 
+function saveVoiceLevels() {
+    try {
+        // Map yapısını JSON'ın anlayacağı Array formatına çevirip kaydet
+        const arrayData = Array.from(userVoiceLevels.entries());
+        fs.writeFileSync('./userVoiceLevels.json', JSON.stringify(arrayData, null, 2));
+    } catch (error) {
+        console.error("userVoiceLevels.json kaydedilirken hata oluştu:", error);
+    }
+}
+
+
 
 const OWNER_ID = "994985345550659614";
 const sansCooldown = new Map();
