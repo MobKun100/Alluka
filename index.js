@@ -1726,7 +1726,7 @@ if (textData.xp >= textData.level * 100) {
 
 // Haritaya geri kaydet ve JSON'a yaz
 userLevels.set(key, textData);
-saveUserLevels(); // Chat JSON'ını kaydeden kendi fonksiyonun
+saveData(); // Chat JSON'ını kaydeden kendi fonksiyonun
 
 
   // Güvenlik: Eğer alt kırılımlar eksikse tamamla
