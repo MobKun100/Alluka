@@ -40,8 +40,6 @@ function getUserData(userId) {
   return globalLevels.get(userId);
 }
 
-const fs = require('fs');
-
 // 1. Haritayı (Map) Tanımla
 const userVoiceLevels = new Map();
 
