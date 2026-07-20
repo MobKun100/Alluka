@@ -1512,11 +1512,17 @@ client.on("voiceStateUpdate", (oldState, newState) => {
 // Ses Yardımcıları
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
-  if (newState.member?.user.bot) return;
+  // Kullanıcı ve Sunucu ID'sini güvenli bir şekilde alıyoruz
+  const userId = oldState.id || newState.id;
+  const guildId = oldState.guild.id || newState.guild.id;
+  
+  if (!guildId || !userId) return;
 
-  const userId = newState.member?.id || oldState.member?.id;
-  const guild = newState.guild || oldState.guild;
-  if (!userId) return;
+  // İŞTE EKSİK OLAN VE BOTU ÇÖKERTEN SATIR:
+  const key = `${guildId}_${userId}`;
+
+  // ... (Bundan sonraki senin mevcut ses XP artırma kodların devam edecek)
+
 
   // Ses durumu değiştiğinde (voiceStateUpdate)
 // Örnek: Kullanıcı sesten çıktığında veya her X dakikada bir tetiklendiğinde:
@@ -1749,6 +1755,9 @@ client.on('messageCreate', async (message) => {
 
   // Güncellenen veriyi haritaya geri kaydet
   userLevels.set(key, ud);
+  // userLevels.set(key, ud); satırının hemen altına bunu yapıştır:
+fs.writeFileSync('./userLevels.json', JSON.stringify(Array.from(userLevels.entries()), null, 2));
+
 
   // JSON dosyasına kalıcı olarak yazdır (saveData fonksiyonunu çağırıyoruz)
   saveData(userLevels, './userLevels.json'); 
