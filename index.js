@@ -18,8 +18,28 @@ const {
   Partials,
   AttachmentBuilder,
 } = require("discord.js");
-const { joinVoiceChannel, VoiceConnectionStatus } = require("@discordjs/voice");
-const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const { createCanvas, loadImage, registerFont } = require('canvas');
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v10');
+
+// Global Veritabanı (İsteğe göre quick.db veya veri.json yapısına bağlayabilirsin kanka)
+// Yapı: userId -> { chatXp, chatLevel, voiceXp, voiceLevel }
+const globalLevels = new Map();
+
+// Ses kanallarındaki kullanıcıların giriş zamanlarını takip etmek için geçici hafıza
+const voiceActiveUsers = new Map();
+
+// Seviye atlamak için gereken XP formülü (Abartı olmaması için makul tutuldu)
+const getRequiredXp = (level) => (level + 1) * 200;
+
+// Kullanıcı verisini getiren veya yoksa oluşturan yardımcı fonksiyon
+function getUserData(userId) {
+  if (!globalLevels.has(userId)) {
+    globalLevels.set(userId, { chatXp: 0, chatLevel: 0, voiceXp: 0, voiceLevel: 0 });
+  }
+  return globalLevels.get(userId);
+}
+
 
 const OWNER_ID = "994985345550659614";
 const sansCooldown = new Map();
@@ -958,6 +978,60 @@ function isHbEngel(guildId, channelId) {
   return (hbEngelMap.get(guildId) || []).includes(channelId);
 }
 
+// Ses Yardımcıları
+
+client.on('voiceStateUpdate', (oldState, newState) => {
+  if (newState.member.user.bot) return;
+
+  const userId = newState.id;
+
+  // Kullanıcı bir ses kanalına bağlandıysa veya kanallar arası geçiş yaptıysa
+  if (!oldState.channelId && newState.channelId) {
+    // Sağır veya susturulmuş değilse süresini başlat (Afk kalıp XP kasılmasın)
+    if (!newState.selfDeaf && !newState.selfMute) {
+      voiceActiveUsers.set(userId, Date.now());
+    }
+  } 
+  // Kullanıcı ses kanalından tamamen çıktıysa
+  else if (oldState.channelId && !newState.channelId) {
+    voiceActiveUsers.delete(userId);
+  }
+  // Susturma/Sağırlaştırma durumları değiştiyse
+  else if (oldState.channelId === newState.channelId) {
+    if (newState.selfDeaf || newState.selfMute) {
+      voiceActiveUsers.delete(userId); // XP kazanımını durdur
+    } else if (!voiceActiveUsers.has(userId)) {
+      voiceActiveUsers.set(userId, Date.now()); // Yeniden başlat
+    }
+  }
+});
+
+// Her 1 dakikada bir (60000 ms) sestedekileri kontrol edip 5-10 arası makul bir XP veren döngü
+setInterval(() => {
+  const simdi = Date.now();
+  for (const [userId, girisZamani] of voiceActiveUsers.entries()) {
+    // 1 dakikadan fazla süre geçmişse
+    if (simdi - girisZamani >= 60000) {
+      const userData = getUserData(userId);
+      const kazanilanXp = Math.floor(Math.random() * 6) + 5; // 5-10 arası az bir XP
+      
+      userData.voiceXp += kazanilanXp;
+      
+      // Seviye kontrolü
+      let reqXp = getRequiredXp(userData.voiceLevel);
+      if (userData.voiceXp >= reqXp) {
+        userData.voiceXp -= reqXp;
+        userData.voiceLevel++;
+        // İsteğe bağlı: Sunucuya ses seviye atlama mesajı tetiklenebilir
+      }
+      
+      // Giriş zamanını güncelle ki sonraki dakikayı saysın
+      voiceActiveUsers.set(userId, simdi);
+    }
+  }
+}, 30000); // 30 saniyede bir tarar, dakikası dolana XP basar
+
+
 // ── XP & Seviye rol sistemi ───────────────────────────────────────────────────
 function addXP(userId, guildId) {
   const key = `${guildId}_${userId}`;
@@ -1545,21 +1619,35 @@ const cooldowns = new Map();
 client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.guild) return;
 
-  // 📈 Arkada Çalışan XP ve İstatistik Sistemleri (Cooldown'dan etkilenmez)
-  const leveledUp = addXP(message.author.id, message.guild.id);
-  if (leveledUp) {
-    const key = `${message.guild.id}_${message.author.id}`;
-    const newLevel = userLevels.get(key).level;
-    addCoins(message.author.id, message.guild.id, newLevel * 50);
-    await sendLevelUpMessage(message.member, newLevel, newLevel * 50);
-  }
-  addMessageStat(message.author.id, message.guild.id);
-  if (Math.random() < 0.05)
-    addCoins(
-      message.author.id,
-      message.guild.id,
-      Math.floor(Math.random() * 10) + 1,
-    );
+  // 📈 Arkada Çalışan Global XP, Coin ve İstatistik Sistemi (Cooldown'dan etkilenmez)
+const userData = getUserData(message.author.id);
+const chatKazanilanXp = Math.floor(Math.random() * 4) + 2; // 2-5 arası abartısız XP
+
+userData.chatXp += chatKazanilanXp;
+const gerekenChatXp = getRequiredXp(userData.chatLevel);
+
+// Seviye Atlama Kontrolü
+if (userData.chatXp >= gerekenChatXp) {
+  userData.chatXp -= gerekenChatXp;
+  userData.chatLevel++;
+  
+  // Eski kodundaki seviye ödülü mantığı: (Yeni Seviye * 50) kadar Coin/HB ekle
+  const ödülCoin = userData.chatLevel * 50;
+  addCoins(message.author.id, ödülCoin); 
+  
+  // Seviye atlama mesajını tetikle
+  await sendLevelUpMessage(message.member, userData.chatLevel, ödülCoin);
+}
+
+// Mesaj istatistiğini kaydet (Global)
+addMessageStat(message.author.id);
+
+// %5 şansla mesaj atarken ekstra 1-10 arası Coin/HB düşürme mantığı
+if (Math.random() < 0.05) {
+  const rastgeleCoin = Math.floor(Math.random() * 10) + 1;
+  addCoins(message.author.id, rastgeleCoin);
+}
+
 
   // 💬 Prefix Olmayan Otomatik Cevaplar (Cooldown'dan etkilenmez)
   if (!message.content.startsWith(prefix)) {
@@ -3216,52 +3304,143 @@ client.on("messageCreate", async (message) => {
 
   // ── PROFİL (Canvas) ────────────────────────────────────────────────────────
   if (command === "profil") {
-    const target = message.mentions.members.first() || message.member;
-    const key = `${message.guild.id}_${target.id}`;
-    const ud = userLevels.get(key) || { xp: 0, level: 1 };
-    const coins = getCoins(target.id, message.guild.id);
-    const prof = getProfile(target.id, message.guild.id);
+  const hedefKullanici = message.mentions.users.first() || message.author;
+  const userData = getUserData(hedefKullanici.id);
 
-    const loading = await message.channel.send("🎨 Profil kartı oluşturuluyor...");
+  // Canvas boyutlarını belirle (Geniş profil formatı)
+  const canvas = createCanvas(900, 300);
+  const ctx = canvas.getContext('2d');
 
-    try {
-      // 1. Kullanıcıyı fetch'le (banner için şart)
-      const fetchedUser = await target.user.fetch();
-      // 2. Banner'ı PNG formatında al (Canvas için en sağlıklısı bu)
-      const bannerUrl = fetchedUser.bannerURL({ extension: 'png', size: 512 });
-
-      // 3. Banner'ı fonksiyona gönder
-      const imageBuffer = await generateProfileCard(target, ud, coins, prof, bannerUrl);
-
-      const attachment = new AttachmentBuilder(imageBuffer, { name: "profil.png" });
-      await loading.delete().catch(() => {});
-      return message.channel.send({ files: [attachment] });
-
-    } catch (err) {
-      console.error("Profil canvas hatası:", err);
-      await loading.delete().catch(() => {});
-
-      // Fallback Embed'e de banner'ı ekleyebilirsin
-      const fetchedUser = await target.user.fetch();
-      return message.channel.send({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(prof.color || "#5865F2")
-            .setTitle(`${prof.activeBadge ? prof.activeBadge + " " : ""}${target.user.tag} — Profil`)
-            .setImage(fetchedUser.bannerURL({ dynamic: true, size: 512 })) // Embed'de GIF çalışır
-            .setThumbnail(target.user.displayAvatarURL({ dynamic: true, size: 256 }))
-            .setDescription(`*${prof.bio || "Bio yok"}*`)
-            .addFields(
-              { name: "⭐ Level", value: `${ud.level}`, inline: true },
-              { name: "✨ XP", value: `${ud.xp}/${ud.level * 100}`, inline: true },
-              { name: "💰 HB", value: formatCoins(coins), inline: true },
-              { name: "🏅 Rozet", value: prof.activeBadge || "Yok", inline: true },
-            )
-            .setTimestamp(),
-        ],
-      });
+  // 1. Arka Plan Resmi (Kullanıcının Bannerını Discord API'den çekme)
+  let bannerUrl = null;
+  try {
+    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN || client.token);
+    const userRes = await rest.get(Routes.user(hedefKullanici.id));
+    if (userRes.banner) {
+      bannerUrl = `https://cdn.discordapp.com/banners/${hedefKullanici.id}/${userRes.banner}.png?size=1024`;
     }
+  } catch (err) {
+    console.log("Banner çekilirken hata oluştu, varsayılan renk kullanılacak.");
   }
+
+  if (bannerUrl) {
+    const bannerImg = await loadImage(bannerUrl);
+    ctx.drawImage(bannerImg, 0, 0, canvas.width, canvas.height);
+    // Bannerın üzerine koyu bir katman atalım ki yazılar okunsun
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    // Banner yoksa özgün koyu mor/siyah degrade arka plan
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    grad.addColorStop(0, '#0f0c20');
+    grad.addColorStop(1, '#15102a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Tasarımdaki ince mor dış çerçeve çizgisi
+  ctx.strokeStyle = '#6a1b9a';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+  // 2. Kullanıcı Adı ve Unvanı Yazma
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText(hedefKullanici.username, 270, 75);
+
+  ctx.fillStyle = '#8e24aa';
+  ctx.font = '20px sans-serif';
+  ctx.fillText('#Sokak Şövalyesi', 270, 105); // Sana özel minimal simge havası
+
+  // Matematiksel Değerler
+  const reqChatXp = getRequiredXp(userData.chatLevel);
+  const reqVoiceXp = getRequiredXp(userData.voiceLevel);
+
+  const chatYuzde = Math.min(userData.chatXp / reqChatXp, 1);
+  const voiceYuzde = Math.min(userData.voiceXp / reqVoiceXp, 1);
+
+  // 3. MESAJ SEVİYESİ BARI VE METİNLERİ
+  ctx.fillStyle = '#b0bec5';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('MESAJ SEVİYESİ', 270, 150);
+
+  ctx.fillStyle = '#8e24aa';
+  ctx.fillText(`LVL ${userData.chatLevel}`, 750, 150);
+
+  // Barın Arka Planı (Koyu gri şerit)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.beginPath();
+  ctx.roundRect(270, 160, 550, 25, 12.5);
+  ctx.fill();
+
+  // Aktif İlerleme Barı (Mor)
+  if (chatYuzde > 0) {
+    ctx.fillStyle = '#7b1fa2';
+    ctx.beginPath();
+    ctx.roundRect(270, 160, 550 * chatYuzde, 25, 12.5);
+    ctx.fill();
+  }
+
+  // Bar İçi Yazı
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${userData.chatXp.toLocaleString()} / ${reqChatXp.toLocaleString()} XP`, 270 + 275, 177);
+  ctx.textAlign = 'start'; // Hizalamayı sıfırla
+
+  // 4. SES SEVİYESİ BARI VE METİNLERİ
+  ctx.fillStyle = '#b0bec5';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('SES SEVİYESİ', 270, 220);
+
+  ctx.fillStyle = '#8e24aa';
+  ctx.fillText(`LVL ${userData.voiceLevel}`, 750, 220);
+
+  // Barın Arka Planı
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.beginPath();
+  ctx.roundRect(270, 230, 550, 25, 12.5);
+  ctx.fill();
+
+  // Aktif İlerleme Barı (Mor)
+  if (voiceYuzde > 0) {
+    ctx.fillStyle = '#7b1fa2';
+    ctx.beginPath();
+    ctx.roundRect(270, 230, 550 * voiceYuzde, 25, 12.5);
+    ctx.fill();
+  }
+
+  // Bar İçi Yazı
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${userData.voiceXp.toLocaleString()} / ${reqVoiceXp.toLocaleString()} XP`, 270 + 275, 247);
+  ctx.textAlign = 'start';
+
+  // 5. YUVARLAK AVATAR ÇİZİMİ
+  const avatarUrl = hedefKullanici.displayAvatarURL({ extension: 'png', size: 256 });
+  const avatarImg = await loadImage(avatarUrl);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(avatarImg, 50, 60, 180, 180);
+  ctx.restore();
+
+  // Avatar Dış Çerçevesi (Şık beyaz çizgi)
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
+  ctx.stroke();
+
+  // Dosya Olarak Discord'a Gönderme İşlemi
+  const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profil-karti.png' });
+  return message.reply({ files: [attachment] });
+}
+
 
 
   // ── İSTATİSTİK ────────────────────────────────────────────────────────────
