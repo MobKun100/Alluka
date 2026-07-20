@@ -1760,7 +1760,6 @@ fs.writeFileSync('./userLevels.json', JSON.stringify(Array.from(userLevels.entri
 
 
   // JSON dosyasına kalıcı olarak yazdır (saveData fonksiyonunu çağırıyoruz)
-  saveData(userLevels, './userLevels.json'); 
 
   // Mesaj istatistiğini kaydet (Global)
   addMessageStat(userId, guildId);
