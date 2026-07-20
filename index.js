@@ -1454,53 +1454,56 @@ client.on("voiceStateUpdate", (oldState, newState) => {
 
 // Ses Yardımcıları
 
-const voiceTimeouts = new Map(); // Kullanıcıların giriş zamanlarını tutmak için
+const voiceTimeouts = new Map();
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
     if (newState.member.user.bot) return;
 
     const userId = newState.id;
-    const guildId = newState.guild.id;
 
-    // Durum 1: Kullanıcı bir ses kanalına katıldı
+    // Durum 1: Kullanıcı sese girdi
     if (!oldState.channelId && newState.channelId) {
-        voiceTimeouts.set(`${guildId}_${userId}`, Date.now());
+        voiceTimeouts.set(userId, Date.now());
     }
 
-    // Durum 2: Kullanıcı ses kanalından ayrıldı veya oda değiştirdi
+    // Durum 2: Kullanıcı sesten çıktı veya oda değiştirdi
     if (oldState.channelId && (!newState.channelId || oldState.channelId !== newState.channelId)) {
-        const joinTime = voiceTimeouts.get(`${guildId}_${userId}`);
+        const joinTime = voiceTimeouts.get(userId);
         
         if (joinTime) {
-            const timeSpent = Date.now() - joinTime; // Milisaniye cinsinden seste kalma süresi
-            const minutesSpent = Math.floor(timeSpent / 60000); // Dakikaya çevir
+            const timeSpent = Date.now() - joinTime;
+            const minutesSpent = Math.floor(timeSpent / 60000); // Dakika hesabı
 
             if (minutesSpent > 0) {
-                // Her dakika için örn: 20 XP
                 const voiceXpToAdd = minutesSpent * 20;
 
-                let userStats = await db.get(`stats_${guildId}_${userId}`) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
-                userStats.voiceXp += voiceXpToAdd;
+                // Kendi JSON yapından çekiyorsun
+                let userData = getUserData(userId) || {};
+                userData.voiceXp = (userData.voiceXp || 0) + voiceXpToAdd;
+                userData.voiceLevel = userData.voiceLevel || 1;
 
                 // Ses seviye atlama kontrolü
-                let nextVoiceLevelXp = userStats.voiceLevel * 600;
-                while (userStats.voiceXp >= nextVoiceLevelXp) {
-                    userStats.voiceXp -= nextVoiceLevelXp;
-                    userStats.voiceLevel += 1;
+                let nextVoiceLevelXp = userData.voiceLevel * 600;
+                while (userData.voiceXp >= nextVoiceLevelXp) {
+                    userData.voiceXp -= nextVoiceLevelXp;
+                    userData.voiceLevel += 1;
                 }
 
-                await db.set(`stats_${guildId}_${userId}`, userStats);
+                // Kendi JSON yapına kaydediyorsun
+                if (typeof saveUserData === 'function') {
+                    saveUserData(userId, userData);
+                }
             }
             
-            // Eğer sesten tamamen çıktıysa map'ten sil, oda değiştirdiyse yeni süreyi başlat
             if (!newState.channelId) {
-                voiceTimeouts.delete(`${guildId}_${userId}`);
+                voiceTimeouts.delete(userId);
             } else {
-                voiceTimeouts.set(`${guildId}_${userId}`, Date.now());
+                voiceTimeouts.set(userId, Date.now());
             }
         }
     }
 });
+
 
 
 // ── Davet log ─────────────────────────────────────────────────────────────────
@@ -1636,41 +1639,51 @@ const cooldowns = new Map();
 
 // Mesaj başına XP ekleme mantığı
 // Kodunun üst kısımlarında bu satırı bul ve tam olarak bu şekilde değiştir:
-client.on('messageCreate', async (message) => { 
+client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
     const userId = message.author.id;
-    const guildId = message.guild.id;
 
-    // Veri tabanından mevcut xp ve leveli çek (Burayı kendi db sistemine göre uyarla)
-    let userStats = await db.get(`stats_${guildId}_${userId}`) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
+    // 1. Kendi JSON sisteminden veriyi çekiyorsun
+    let userData = getUserData(userId) || {};
+    
+    // Veriler yoksa varsayılan değerleri tanımlıyoruz
+    userData.chatXp = userData.chatXp || 0;
+    userData.chatLevel = userData.chatLevel || 1;
+    userData.voiceXp = userData.voiceXp || 0;
+    userData.voiceLevel = userData.voiceLevel || 1;
 
-    // Rastgele veya sabit XP ekle
+    // XP Ekleme
     const xpToAdd = Math.floor(Math.random() * 10) + 15; 
-    userStats.chatXp += xpToAdd;
+    userData.chatXp += xpToAdd;
 
-    // Seviye atlama kontrolü (Örn: Her seviye için gereken XP = level * 500)
-    let nextLevelXp = userStats.chatLevel * 500;
-    if (userStats.chatXp >= nextLevelXp) {
-        userStats.chatXp -= nextLevelXp;
-        userStats.chatLevel += 1;
+    // Seviye Atlama Kontrolü
+    const reqChatXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData.chatLevel) : (userData.chatLevel * 500);
+    if (userData.chatXp >= reqChatXp) {
+        userData.chatXp -= reqChatXp;
+        userData.chatLevel += 1;
         
-        // İsteğe bağlı: Log kanalına veya mesaja seviye atlama bildirimi
-        message.channel.send(`🎉 Tebrikler ${message.author}, chat seviyen **${userStats.chatLevel}** oldu!`);
+        message.channel.send(`🎉 Tebrikler ${message.author}, chat seviyen **${userData.chatLevel}** oldu!`);
     }
 
-    // Güncel veriyi kaydet
-    await db.set(`stats_${guildId}_${userId}`, userStats);
+    // 2. Kendi JSON sistemine veriyi geri yazma
+    // Not: JSON'a kaydetmek için kullandığın fonksiyonun adı saveUserData veya writeData gibi bir şeydir.
+    // Aşağıdaki satırı kendi kaydetme fonksiyonuna göre düzenle:
+    if (typeof saveUserData === 'function') {
+        saveUserData(userId, userData);
+    }
+
+
 
 
 
 // Mesaj istatistiğini kaydet (Global)
-addMessageStat(message.author.id, message.guild.id);
+    addMessageStat(message.author.id, message.guild.id);
 
 // %5 şansla mesaj atarken ekstra 1-10 arası Coin/HB düşürme mantığı
-if (Math.random() < 0.05) {
-  const rastgeleCoin = Math.floor(Math.random() * 10) + 1;
-  addCoins(message.author.id, rastgeleCoin);
+    if (Math.random() < 0.05) {
+      const rastgeleCoin = Math.floor(Math.random() * 10) + 1;
+      addCoins(message.author.id, rastgeleCoin);
 }
 
 
