@@ -1685,7 +1685,6 @@ if (Math.random() < 0.05) {
   }
 
   // 🛡️ 2 SANİYE COOLDOWN SİSTEMİ (Sadece komutlar için geçerli)
-  const userId = message.author.id;
   const simdi = Date.now();
   const cooldownSuresi = 120; // 2 saniye
 
