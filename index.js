@@ -32,46 +32,7 @@ const voiceActiveUsers = new Map();
 // Seviye atlamak için gereken XP formülü (Abartı olmaması için makul tutuldu)
 const getRequiredXp = (level) => (level + 1) * 200;
 
-// Kullanıcı verisini getiren veya yoksa oluşturan yardımcı fonksiyon
-function getUserData(userId) {
-  if (!globalLevels.has(userId)) {
-    globalLevels.set(userId, { chatXp: 0, chatLevel: 0, voiceXp: 0, voiceLevel: 0 });
-  }
-  return globalLevels.get(userId);
-}
 
-// 1. Haritayı (Map) Tanımla
-const userVoiceLevels = new Map();
-
-// 2. JSON Dosyasından Verileri Oku ve Map'e Yükle
-try {
-    if (fs.existsSync('./userVoiceLevels.json')) {
-        const fileData = fs.readFileSync('./userVoiceLevels.json', 'utf-8');
-        // Eğer dosya içi boşsa hata vermemesi için kontrol et
-        if (fileData.trim()) {
-            const jsonData = JSON.parse(fileData);
-            // Array formatındaki veriyi Map protokolüne çevirerek yükle
-            for (const [key, value] of jsonData) {
-                userVoiceLevels.set(key, value);
-            }
-        }
-    } else {
-        // Dosya yoksa boş bir dizi ile oluştur
-        fs.writeFileSync('./userVoiceLevels.json', JSON.stringify([]));
-    }
-} catch (error) {
-    console.error("userVoiceLevels.json yüklenirken hata oluştu:", error);
-}
-
-function saveVoiceLevels() {
-    try {
-        // Map yapısını JSON'ın anlayacağı Array formatına çevirip kaydet
-        const arrayData = Array.from(userVoiceLevels.entries());
-        fs.writeFileSync('./userVoiceLevels.json', JSON.stringify(arrayData, null, 2));
-    } catch (error) {
-        console.error("userVoiceLevels.json kaydedilirken hata oluştu:", error);
-    }
-}
 
 
 
@@ -354,6 +315,50 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 //
+
+
+// Kullanıcı verisini getiren veya yoksa oluşturan yardımcı fonksiyon
+function getUserData(userId) {
+  if (!globalLevels.has(userId)) {
+    globalLevels.set(userId, { chatXp: 0, chatLevel: 0, voiceXp: 0, voiceLevel: 0 });
+  }
+  return globalLevels.get(userId);
+}
+
+// 1. Haritayı (Map) Tanımla
+const userVoiceLevels = new Map();
+
+// 2. JSON Dosyasından Verileri Oku ve Map'e Yükle
+try {
+    if (fs.existsSync('./userVoiceLevels.json')) {
+        const fileData = fs.readFileSync('./userVoiceLevels.json', 'utf-8');
+        // Eğer dosya içi boşsa hata vermemesi için kontrol et
+        if (fileData.trim()) {
+            const jsonData = JSON.parse(fileData);
+            // Array formatındaki veriyi Map protokolüne çevirerek yükle
+            for (const [key, value] of jsonData) {
+                userVoiceLevels.set(key, value);
+            }
+        }
+    } else {
+        // Dosya yoksa boş bir dizi ile oluştur
+        fs.writeFileSync('./userVoiceLevels.json', JSON.stringify([]));
+    }
+} catch (error) {
+    console.error("userVoiceLevels.json yüklenirken hata oluştu:", error);
+}
+
+function saveVoiceLevels() {
+    try {
+        // Map yapısını JSON'ın anlayacağı Array formatına çevirip kaydet
+        const arrayData = Array.from(userVoiceLevels.entries());
+        fs.writeFileSync('./userVoiceLevels.json', JSON.stringify(arrayData, null, 2));
+    } catch (error) {
+        console.error("userVoiceLevels.json kaydedilirken hata oluştu:", error);
+    }
+}
+
+
 
 // Geçici Envanter Hafızası (Kalıcı olmasını istersen DB'ye bağlayabilirsin)
 const userInventories = new Map();
