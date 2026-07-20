@@ -3252,8 +3252,6 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
 const currentXP = ud.xp;
 const nextLevelXP = 200; // ud.level * 200 olan yeri direkt sabit 200 yaptık, yani yarıya düştü!
 
-const progress = Math.min(currentXP / nextLevelXP, 1);
-
 
     // Başlık ve Seviye Bilgisi
     ctx.fillStyle = '#b5b5b5';
