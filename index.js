@@ -873,6 +873,26 @@ function hasItem(userId, guildId, itemId) {
   return getInventory(userId, guildId).includes(itemId);
 }
 
+// Seviye Sistemi
+
+function getUserData(userId) {
+  // Eğer hafızada halihazırda yoksa veritabanından veya eski userLevels'tan çekmeyi dene
+  if (!globalLevels.has(userId)) {
+    // NOT: Eğer quick.db veya replit db kullanıyorsan burayı db.get(`${userId}_chatLevel`) şeklinde bağlayabilirsin.
+    // Şimdilik senin eski haritandan veya güvenli bir varsayılandan veri çekiyoruz:
+    const eskiVeri = userLevels ? userLevels.get(userId) : null; 
+
+    globalLevels.set(userId, {
+      chatXp: eskiVeri ? (eskiVeri.xp || 0) : 0,
+      chatLevel: eskiVeri ? (eskiVeri.level || 0) : 0,
+      voiceXp: 0, // Ses sistemi yeni başladığı için 0
+      voiceLevel: 0
+    });
+  }
+  return globalLevels.get(userId);
+}
+
+
 // ── İstatistik yardımcıları ───────────────────────────────────────────────────
 function getStats(userId, guildId) {
   const key = `${guildId}_${userId}`;
@@ -977,59 +997,6 @@ function formatTime(ms) {
 function isHbEngel(guildId, channelId) {
   return (hbEngelMap.get(guildId) || []).includes(channelId);
 }
-
-// Ses Yardımcıları
-
-client.on('voiceStateUpdate', (oldState, newState) => {
-  if (newState.member.user.bot) return;
-
-  const userId = newState.id;
-
-  // Kullanıcı bir ses kanalına bağlandıysa veya kanallar arası geçiş yaptıysa
-  if (!oldState.channelId && newState.channelId) {
-    // Sağır veya susturulmuş değilse süresini başlat (Afk kalıp XP kasılmasın)
-    if (!newState.selfDeaf && !newState.selfMute) {
-      voiceActiveUsers.set(userId, Date.now());
-    }
-  } 
-  // Kullanıcı ses kanalından tamamen çıktıysa
-  else if (oldState.channelId && !newState.channelId) {
-    voiceActiveUsers.delete(userId);
-  }
-  // Susturma/Sağırlaştırma durumları değiştiyse
-  else if (oldState.channelId === newState.channelId) {
-    if (newState.selfDeaf || newState.selfMute) {
-      voiceActiveUsers.delete(userId); // XP kazanımını durdur
-    } else if (!voiceActiveUsers.has(userId)) {
-      voiceActiveUsers.set(userId, Date.now()); // Yeniden başlat
-    }
-  }
-});
-
-// Her 1 dakikada bir (60000 ms) sestedekileri kontrol edip 5-10 arası makul bir XP veren döngü
-setInterval(() => {
-  const simdi = Date.now();
-  for (const [userId, girisZamani] of voiceActiveUsers.entries()) {
-    // 1 dakikadan fazla süre geçmişse
-    if (simdi - girisZamani >= 60000) {
-      const userData = getUserData(userId);
-      const kazanilanXp = Math.floor(Math.random() * 6) + 5; // 5-10 arası az bir XP
-      
-      userData.voiceXp += kazanilanXp;
-      
-      // Seviye kontrolü
-      let reqXp = getRequiredXp(userData.voiceLevel);
-      if (userData.voiceXp >= reqXp) {
-        userData.voiceXp -= reqXp;
-        userData.voiceLevel++;
-        // İsteğe bağlı: Sunucuya ses seviye atlama mesajı tetiklenebilir
-      }
-      
-      // Giriş zamanını güncelle ki sonraki dakikayı saysın
-      voiceActiveUsers.set(userId, simdi);
-    }
-  }
-}, 30000); // 30 saniyede bir tarar, dakikası dolana XP basar
 
 
 // ── XP & Seviye rol sistemi ───────────────────────────────────────────────────
@@ -1484,6 +1451,61 @@ client.on("voiceStateUpdate", (oldState, newState) => {
     );
   }
 });
+
+// Ses Yardımcıları
+
+client.on('voiceStateUpdate', (oldState, newState) => {
+  if (newState.member.user.bot) return;
+
+  const userId = newState.id;
+
+  // Kullanıcı bir ses kanalına bağlandıysa veya kanallar arası geçiş yaptıysa
+  if (!oldState.channelId && newState.channelId) {
+    // Sağır veya susturulmuş değilse süresini başlat (Afk kalıp XP kasılmasın)
+    if (!newState.selfDeaf && !newState.selfMute) {
+      voiceActiveUsers.set(userId, Date.now());
+    }
+  } 
+  // Kullanıcı ses kanalından tamamen çıktıysa
+  else if (oldState.channelId && !newState.channelId) {
+    voiceActiveUsers.delete(userId);
+  }
+  // Susturma/Sağırlaştırma durumları değiştiyse
+  else if (oldState.channelId === newState.channelId) {
+    if (newState.selfDeaf || newState.selfMute) {
+      voiceActiveUsers.delete(userId); // XP kazanımını durdur
+    } else if (!voiceActiveUsers.has(userId)) {
+      voiceActiveUsers.set(userId, Date.now()); // Yeniden başlat
+    }
+  }
+});
+
+// Her 1 dakikada bir (60000 ms) sestedekileri kontrol edip 5-10 arası makul bir XP veren döngü
+setInterval(() => {
+  const simdi = Date.now();
+  for (const [userId, girisZamani] of voiceActiveUsers.entries()) {
+    // 1 dakikadan fazla süre geçmişse
+    if (simdi - girisZamani >= 60000) {
+      const userData = getUserData(userId);
+      const kazanilanXp = Math.floor(Math.random() * 6) + 5; // 5-10 arası az bir XP
+      
+      userData.voiceXp += kazanilanXp;
+      
+      // Seviye kontrolü
+      let reqXp = getRequiredXp(userData.voiceLevel);
+      if (userData.voiceXp >= reqXp) {
+        userData.voiceXp -= reqXp;
+        userData.voiceLevel++;
+        // İsteğe bağlı: Sunucuya ses seviye atlama mesajı tetiklenebilir
+      }
+      
+      // Giriş zamanını güncelle ki sonraki dakikayı saysın
+      voiceActiveUsers.set(userId, simdi);
+    }
+  }
+}, 30000); // 30 saniyede bir tarar, dakikası dolana XP basar
+
+
 
 // ── Davet log ─────────────────────────────────────────────────────────────────
 client.on("guildMemberAdd", async (member) => {
