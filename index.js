@@ -1454,55 +1454,55 @@ client.on("voiceStateUpdate", (oldState, newState) => {
 
 // Ses Yardımcıları
 
-const voiceTimeouts = new Map();
-
 client.on('voiceStateUpdate', async (oldState, newState) => {
-    if (newState.member.user.bot) return;
+  if (newState.member?.user.bot) return;
 
-    const userId = newState.id;
+  const userId = newState.id;
 
-    // Durum 1: Kullanıcı sese girdi
-    if (!oldState.channelId && newState.channelId) {
-        voiceTimeouts.set(userId, Date.now());
-    }
+  // Durum 1: Kullanıcı bir ses kanalına katıldı
+  if (!oldState.channelId && newState.channelId) {
+    voiceSessions.set(userId, Date.now());
+  }
 
-    // Durum 2: Kullanıcı sesten çıktı veya oda değiştirdi
-    if (oldState.channelId && (!newState.channelId || oldState.channelId !== newState.channelId)) {
-        const joinTime = voiceTimeouts.get(userId);
-        
-        if (joinTime) {
-            const timeSpent = Date.now() - joinTime;
-            const minutesSpent = Math.floor(timeSpent / 60000); // Dakika hesabı
+  // Durum 2: Kullanıcı ses kanalından ayrıldı veya oda değiştirdi
+  if (oldState.channelId && (!newState.channelId || oldState.channelId !== newState.channelId)) {
+    const joinTime = voiceSessions.get(userId);
+    
+    if (joinTime) {
+      const timeSpent = Date.now() - joinTime;
+      const minutesSpent = Math.floor(timeSpent / 60000); // Milisaniyeyi dakikaya çevir
 
-            if (minutesSpent > 0) {
-                const voiceXpToAdd = minutesSpent * 20;
-
-                // Kendi JSON yapından çekiyorsun
-                let userData = getUserData(userId) || {};
-                userData.voiceXp = (userData.voiceXp || 0) + voiceXpToAdd;
-                userData.voiceLevel = userData.voiceLevel || 1;
-
-                // Ses seviye atlama kontrolü
-                let nextVoiceLevelXp = userData.voiceLevel * 600;
-                while (userData.voiceXp >= nextVoiceLevelXp) {
-                    userData.voiceXp -= nextVoiceLevelXp;
-                    userData.voiceLevel += 1;
-                }
-
-                // Kendi JSON yapına kaydediyorsun
-                if (typeof saveUserData === 'function') {
-                    saveUserData(userId, userData);
-                }
-            }
-            
-            if (!newState.channelId) {
-                voiceTimeouts.delete(userId);
-            } else {
-                voiceTimeouts.set(userId, Date.now());
-            }
+      if (minutesSpent > 0) {
+        // Kullanıcı kaydı yoksa oluştur
+        if (!userLevels[userId]) {
+          userLevels[userId] = { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
         }
+
+        userLevels[userId].voiceXp = userLevels[userId].voiceXp || 0;
+        userLevels[userId].voiceLevel = userLevels[userId].voiceLevel || 1;
+
+        // Her dakika için 20 XP ekle
+        userLevels[userId].voiceXp += (minutesSpent * 20);
+
+        // Ses seviye atlama kontrolü (Her seviye için: seviye * 600 XP)
+        let reqVoiceXp = userLevels[userId].voiceLevel * 600;
+        while (userLevels[userId].voiceXp >= reqVoiceXp) {
+          userLevels[userId].voiceXp -= reqVoiceXp;
+          userLevels[userId].voiceLevel += 1;
+          reqVoiceXp = userLevels[userId].voiceLevel * 600;
+        }
+      }
+      
+      // Sesten tamamen çıktıysa sil, oda değiştirdiyse yeni giriş zamanını güncelle
+      if (!newState.channelId) {
+        voiceSessions.delete(userId);
+      } else {
+        voiceSessions.set(userId, Date.now());
+      }
     }
+  }
 });
+
 
 
 
@@ -1640,38 +1640,38 @@ const cooldowns = new Map();
 // Mesaj başına XP ekleme mantığı
 // Kodunun üst kısımlarında bu satırı bul ve tam olarak bu şekilde değiştir:
 client.on('messageCreate', async (message) => {
-    if (message.author.bot || !message.guild) return;
+  if (message.author.bot || !message.guild) return;
 
-    const userId = message.author.id;
+  const userId = message.author.id;
 
-    // 1. Kendi JSON sisteminden veriyi çekiyorsun
-    let userData = getUserData(userId) || {};
+  // Kullanıcı kaydı yoksa varsayılan şablonu oluşturuyoruz
+  if (!userLevels[userId]) {
+    userLevels[userId] = {
+      chatXp: 0,
+      chatLevel: 1,
+      voiceXp: 0,
+      voiceLevel: 1
+    };
+  }
+
+  // Güvenlik: Eğer alt kırılımlar eksikse tamamla
+  userLevels[userId].chatXp = userLevels[userId].chatXp || 0;
+  userLevels[userId].chatLevel = userLevels[userId].chatLevel || 1;
+
+  // Mesaj başına rastgele XP ekle
+  const xpToAdd = Math.floor(Math.random() * 10) + 15;
+  userLevels[userId].chatXp += xpToAdd;
+
+  // Seviye atlama kontrolü (Her seviye için: seviye * 500 XP)
+  const reqChatXp = userLevels[userId].chatLevel * 500;
+  if (userLevels[userId].chatXp >= reqChatXp) {
+    userLevels[userId].chatXp -= reqChatXp;
+    userLevels[userId].chatLevel += 1;
     
-    // Veriler yoksa varsayılan değerleri tanımlıyoruz
-    userData.chatXp = userData.chatXp || 0;
-    userData.chatLevel = userData.chatLevel || 1;
-    userData.voiceXp = userData.voiceXp || 0;
-    userData.voiceLevel = userData.voiceLevel || 1;
+    message.channel.send(`✦ Tebrikler ${message.author}, chat seviyen **${userLevels[userId].chatLevel}** oldu!`).catch(() => null);
+  }
 
-    // XP Ekleme
-    const xpToAdd = Math.floor(Math.random() * 10) + 15; 
-    userData.chatXp += xpToAdd;
 
-    // Seviye Atlama Kontrolü
-    const reqChatXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData.chatLevel) : (userData.chatLevel * 500);
-    if (userData.chatXp >= reqChatXp) {
-        userData.chatXp -= reqChatXp;
-        userData.chatLevel += 1;
-        
-        message.channel.send(`🎉 Tebrikler ${message.author}, chat seviyen **${userData.chatLevel}** oldu!`);
-    }
-
-    // 2. Kendi JSON sistemine veriyi geri yazma
-    // Not: JSON'a kaydetmek için kullandığın fonksiyonun adı saveUserData veya writeData gibi bir şeydir.
-    // Aşağıdaki satırı kendi kaydetme fonksiyonuna göre düzenle:
-    if (typeof saveUserData === 'function') {
-        saveUserData(userId, userData);
-    }
 
 
 
@@ -3341,137 +3341,147 @@ client.on('messageCreate', async (message) => {
 
   // ── PROFİL (Canvas) ────────────────────────────────────────────────────────
   if (command === "profil") {
-  const hedefKullanici = message.mentions.users.first() || message.author;
-  const userData = getUserData(hedefKullanici.id) || {};
+  message.channel.send({ content: "✦ Profil kartı hazırlanıyor..." }).then(async (animationMsg) => {
+    try {
+      const hedefKullanici = message.mentions.users.first() || message.author;
+      const userId = hedefKullanici.id;
 
-  // Ana event artık async olduğu için bu satır KESİNLİKLE hata vermez:
-  const animationMsg = await message.channel.send({ content: "📊 Profil kartı hazırlanıyor... ✦" });
+      // Doğrudan senin userLevels logundan verileri çekiyoruz
+      const userData = userLevels[userId] || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
 
-  // Canvas boyutlarını belirle
-  const canvas = createCanvas(900, 300);
-  const ctx = canvas.getContext('2d');
+      // Canvas kurulumu
+      const canvas = createCanvas(900, 300);
+      const ctx = canvas.getContext('2d');
 
-  // 1. Banner Çekme İşlemi
-  let bannerUrl = null;
-  try {
-    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN || client.token);
-    const userRes = await rest.get(Routes.user(hedefKullanici.id));
-    if (userRes.banner) {
-      bannerUrl = `https://cdn.discordapp.com/banners/${hedefKullanici.id}/${userRes.banner}.png?size=1024`;
+      // Banner Çekme İşlemi
+      let bannerUrl = null;
+      try {
+        const rest = new REST({ version: '10' }).setToken(process.env.TOKEN || client.token);
+        const userRes = await rest.get(Routes.user(userId));
+        if (userRes.banner) {
+          bannerUrl = `https://cdn.discordapp.com/banners/${userId}/${userRes.banner}.png?size=1024`;
+        }
+      } catch (err) {
+        console.log("Banner çekilemedi, varsayılan arka plan uygulanıyor.");
+      }
+
+      if (bannerUrl) {
+        const bannerImg = await loadImage(bannerUrl);
+        ctx.drawImage(bannerImg, 0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        grad.addColorStop(0, '#0f0c20');
+        grad.addColorStop(1, '#15102a');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Premium mor çerçeve
+      ctx.strokeStyle = '#6a1b9a';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+      // Kullanıcı Bilgileri
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillText(hedefKullanici.username, 270, 75);
+
+      ctx.fillStyle = '#8e24aa';
+      ctx.font = '20px sans-serif';
+      ctx.fillText('✦ Sokak Şövalyesi', 270, 105);
+
+      // Dinamik XP Limiti Hesaplama
+      const reqChatXp = (userData.chatLevel || 1) * 500;
+      const reqVoiceXp = (userData.voiceLevel || 1) * 600;
+
+      const chatYuzde = Math.min((userData.chatXp || 0) / reqChatXp, 1);
+      const voiceYuzde = Math.min((userData.voiceXp || 0) / reqVoiceXp, 1);
+
+      // ── CHAT SEVİYESİ BARI ──
+      ctx.fillStyle = '#b0bec5';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText('✦ MESAJ SEVİYESİ', 270, 150);
+
+      ctx.fillStyle = '#8e24aa';
+      ctx.fillText(`LVL ${userData.chatLevel || 1}`, 750, 150);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.beginPath();
+      ctx.roundRect(270, 160, 550, 25, 12.5);
+      ctx.fill();
+
+      if (chatYuzde > 0) {
+        ctx.fillStyle = '#7b1fa2';
+        ctx.beginPath();
+        ctx.roundRect(270, 160, 550 * chatYuzde, 25, 12.5);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${(userData.chatXp || 0).toLocaleString()} / ${reqChatXp.toLocaleString()} XP`, 270 + 275, 177);
+      ctx.textAlign = 'start';
+
+      // ── SES SEVİYESİ BARI ──
+      ctx.fillStyle = '#b0bec5';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText('✦ SES SEVİYESİ', 270, 220);
+
+      ctx.fillStyle = '#8e24aa';
+      ctx.fillText(`LVL ${userData.voiceLevel || 1}`, 750, 220);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.beginPath();
+      ctx.roundRect(270, 230, 550, 25, 12.5);
+      ctx.fill();
+
+      if (voiceYuzde > 0) {
+        ctx.fillStyle = '#7b1fa2';
+        ctx.beginPath();
+        ctx.roundRect(270, 230, 550 * voiceYuzde, 25, 12.5);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${(userData.voiceXp || 0).toLocaleString()} / ${reqVoiceXp.toLocaleString()} XP`, 270 + 275, 247);
+      ctx.textAlign = 'start';
+
+      // Avatar Çizimi
+      const avatarUrl = hedefKullanici.displayAvatarURL({ extension: 'png', size: 256 });
+      const avatarImg = await loadImage(avatarUrl);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(avatarImg, 50, 60, 180, 180);
+      ctx.restore();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
+      ctx.stroke();
+
+      // Gönderim ve Yükleniyor Mesajını Temizleme
+      const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profil-karti.png' });
+      if (animationMsg.deletable) await animationMsg.delete().catch(() => null);
+      
+      return message.reply({ files: [attachment] });
+
+    } catch (err) {
+      console.error(err);
+      return message.reply("✦ Profil kartı oluşturulurken teknik bir hata yaşandı.");
     }
-  } catch (err) {
-    console.log("Banner çekilirken hata oluştu, varsayılan renk kullanılacak.");
-  }
-
-  if (bannerUrl) {
-    const bannerImg = await loadImage(bannerUrl);
-    ctx.drawImage(bannerImg, 0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else {
-    const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    grad.addColorStop(0, '#0f0c20');
-    grad.addColorStop(1, '#15102a');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  // Çerçeve
-  ctx.strokeStyle = '#6a1b9a';
-  ctx.lineWidth = 6;
-  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-
-  // İsim ve Unvan
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 36px sans-serif';
-  ctx.fillText(hedefKullanici.username, 270, 75);
-
-  ctx.fillStyle = '#8e24aa';
-  ctx.font = '20px sans-serif';
-  ctx.fillText('✦ Sokak Şövalyesi', 270, 105);
-
-  // Verilerin Matematiksel Hesaplamaları
-  const reqChatXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData.chatLevel || 1) : ((userData.chatLevel || 1) * 500);
-  const reqVoiceXp = typeof getRequiredXp === 'function' ? getRequiredXp(userData.voiceLevel || 1) : ((userData.voiceLevel || 1) * 600);
-
-  const chatYuzde = Math.min((userData.chatXp || 0) / reqChatXp, 1);
-  const voiceYuzde = Math.min((userData.voiceXp || 0) / reqVoiceXp, 1);
-
-  // 3. MESAJ SEVİYESİ BARI
-  ctx.fillStyle = '#b0bec5';
-  ctx.font = 'bold 18px sans-serif';
-  ctx.fillText('💬 MESAJ SEVİYESİ', 270, 150);
-
-  ctx.fillStyle = '#8e24aa';
-  ctx.fillText(`LVL ${userData.chatLevel || 1}`, 750, 150);
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-  ctx.beginPath();
-  ctx.roundRect(270, 160, 550, 25, 12.5);
-  ctx.fill();
-
-  if (chatYuzde > 0) {
-    ctx.fillStyle = '#7b1fa2';
-    ctx.beginPath();
-    ctx.roundRect(270, 160, 550 * chatYuzde, 25, 12.5);
-    ctx.fill();
-  }
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`${(userData.chatXp || 0).toLocaleString()} / ${reqChatXp.toLocaleString()} XP`, 270 + 275, 177);
-  ctx.textAlign = 'start';
-
-  // 4. SES SEVİYESİ BARI
-  ctx.fillStyle = '#b0bec5';
-  ctx.font = 'bold 18px sans-serif';
-  ctx.fillText('🔊 SES SEVİYESİ', 270, 220);
-
-  ctx.fillStyle = '#8e24aa';
-  ctx.fillText(`LVL ${userData.voiceLevel || 1}`, 750, 220);
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-  ctx.beginPath();
-  ctx.roundRect(270, 230, 550, 25, 12.5);
-  ctx.fill();
-
-  if (voiceYuzde > 0) {
-    ctx.fillStyle = '#7b1fa2';
-    ctx.beginPath();
-    ctx.roundRect(270, 230, 550 * voiceYuzde, 25, 12.5);
-    ctx.fill();
-  }
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`${(userData.voiceXp || 0).toLocaleString()} / ${reqVoiceXp.toLocaleString()} XP`, 270 + 275, 247);
-  ctx.textAlign = 'start';
-
-  // 5. YUVARLAK AVATAR ÇİZİMİ
-  const avatarUrl = hedefKullanici.displayAvatarURL({ extension: 'png', size: 256 });
-  const avatarImg = await loadImage(avatarUrl);
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
-  ctx.closePath();
-  ctx.clip();
-  ctx.drawImage(avatarImg, 50, 60, 180, 180);
-  ctx.restore();
-
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(140, 150, 90, 0, Math.PI * 2, true);
-  ctx.stroke();
-
-  const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profil-karti.png' });
-  if (animationMsg.deletable) await animationMsg.delete().catch(() => null);
-  
-  return message.reply({ files: [attachment] });
+  }).catch(console.error);
 }
+
 
 
 
