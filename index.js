@@ -441,7 +441,7 @@ const gachaItems = [
 
 // Matematiksel Seçim Fonksiyonu
 function rollGacha() {
-  
+
   const totalChance = gachaItems.reduce((acc, item) => acc + item.chance, 0);
   const rand = Math.random() * totalChance;
   let cumulative = 0;
@@ -1541,7 +1541,7 @@ client.on("messageDelete", (msg) => {
 client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.guild) return;
 
-  
+
 
   const leveledUp = addXP(message.author.id, message.guild.id);
   if (leveledUp) {
@@ -1568,7 +1568,7 @@ client.on("messageCreate", async (message) => {
       return message.reply("evet ben botum, yapımcım axel_e 👑");
     return;
   }
-  
+
 
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift()?.toLowerCase();
@@ -2057,7 +2057,7 @@ client.on("messageCreate", async (message) => {
     }
 
 
-    
+
 
     // ── ORTAK YARDIMCI FONKSİYONLAR ──────────────────────────────────────────
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -2512,7 +2512,7 @@ client.on("messageCreate", async (message) => {
     }
   }
 
-  
+
   // ── LEVEL ──────────────────────────────────────────────────────────────────
   if (command === "level" || command === "xp") {
     const target = message.mentions.members.first() || message.member;
@@ -2825,7 +2825,7 @@ client.on("messageCreate", async (message) => {
   }
 
 
-  
+
   // ── MAĞAZA ─────────────────────────────────────────────────────────────────
   if (command === "shop" || command === "mağaza" || command === "magaza") {
     const colors = SHOP_ITEMS.filter((i) => i.type === "color");
@@ -3248,44 +3248,40 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
     ctx.fillText(prof.bio || `#Yetkili Alımı Açık!`, 270, 105);
 
     // 4. Tekli İlerleme Çubuğu Hesaplaması (Mesaj Seviyesi)
-    // generateProfileCard içindeki bar hesaplama kısmını burayla değiştir:
-    // Var olan seviye ve XP değişkenlerini direkt kullanıyoruz
-    const currentLevel = ud.level; // a!level'deki seviye değişkenin
-    const currentXP = ud.xp;       // a!level'deki mevcut XP değişkenin
-    const maxXP = 200;             // a!level'deki seviye sınırı kaçsa o (sabit 200 ise 200 yaz geç)
-    
-    const progress = Math.min(currentXP / maxXP, 1);
+    const nextLevelXP = ud.level * 200; // Burayı kendi XP formülünüze göre değiştirebilirsiniz (Örn: 1600)
+    const progress = Math.min(ud.xp / nextLevelXP, 1);
 
     // Başlık ve Seviye Bilgisi
     ctx.fillStyle = '#b5b5b5';
     ctx.font = 'bold 15px sans-serif';
-    ctx.fillText('MESAJ SEVİYESİ', 270, 145);
+    ctx.fillText('MESAJ SEVİYESİ', 270, 150);
 
-    ctx.fillStyle = '#6a259c'; 
+    ctx.fillStyle = '#6a259c'; // Sağdaki seviye numarasını mor tonda belirginleştiriyoruz
     ctx.font = 'bold 15px sans-serif';
-    ctx.fillText(`LVL ${currentLevel}`, 690, 145);
+    ctx.fillText(`LVL ${ud.level}`, 690, 150);
 
-    // Boş Bar
+    // Boş Bar (Arka Plan)
     ctx.beginPath();
-    ctx.roundRect(270, 155, 480, 24, 12);
+    ctx.roundRect(270, 162, 480, 24, 12);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.fill();
 
-    // Dolu Bar
+    // Dolu Bar (Ön Plan Mor Renk)
     if (progress > 0) {
         ctx.beginPath();
-        ctx.roundRect(270, 155, 480 * progress, 24, 12);
-        ctx.fillStyle = '#8a33cc'; 
+        ctx.roundRect(270, 162, 480 * progress, 24, 12);
+        ctx.fillStyle = '#8a33cc';
         ctx.fill();
     }
 
-    // Yazıyı direkt kopyala-yapıştır mantığıyla var olan değişkenlerle basıyoruz
+    // Bar İçi Yazısı (Mevcut XP / Gerekli XP)
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${currentXP} / ${maxXP} XP`, 270 + (480 / 2), 172);
-    ctx.textAlign = 'left';
+    ctx.fillText(`${ud.xp.toLocaleString()} / ${nextLevelXP.toLocaleString()} XP`, 270 + (480 / 2), 179);
 
+    // Hizalamayı sola geri çekiyoruz
+    ctx.textAlign = 'left';
 
     // 5. Yuvarlak Avatar Çizimi
     const avatarX = 145;
@@ -3313,7 +3309,7 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
     ctx.closePath();
     ctx.fillStyle = '#f23f43'; 
     ctx.fill();
-    
+
     ctx.strokeStyle = '#111214';
     ctx.lineWidth = 4;
     ctx.stroke();
@@ -3327,7 +3323,7 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
   if (command === "profil") {
     const target = message.mentions.members.first() || message.member;
     const key = `${message.guild.id}_${target.id}`;
-    
+
     // Sadece mesaj seviye verisini çekiyoruz
     const ud = userLevels.get(key) || { xp: 0, level: 1 };
     const coins = getCoins(target.id, message.guild.id);
@@ -3454,7 +3450,7 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
       ],
     });
   }
-  
+
 
   // ── OYUNLAR ────────────────────────────────────────────────────────────────
   const gameCmds = [
@@ -4836,7 +4832,7 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
 
   // yaz
 
-  
+
   if (command === "yaz" || command === "say") {
     const allowedId = "994985345550659614";
 
@@ -5062,4 +5058,3 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
 
 client.login(process.env.TOKEN);
 
- 
