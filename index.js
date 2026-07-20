@@ -3248,10 +3248,8 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
     ctx.fillText(prof.bio || `#Yetkili Alımı Açık!`, 270, 105);
 
     // 4. Tekli İlerleme Çubuğu Hesaplaması (Mesaj Seviyesi)
-    // Profil kartındaki hesaplamayı yarıya düşürüp a!level ile eşitliyoruz
-const currentXP = ud.xp;
-const nextLevelXP = 200; // ud.level * 200 olan yeri direkt sabit 200 yaptık, yani yarıya düştü!
-
+    const nextLevelXP = ud.level * 200; // Burayı kendi XP formülünüze göre değiştirebilirsiniz (Örn: 1600)
+    const progress = Math.min(ud.xp / nextLevelXP, 1);
 
     // Başlık ve Seviye Bilgisi
     ctx.fillStyle = '#b5b5b5';
@@ -3280,8 +3278,7 @@ const nextLevelXP = 200; // ud.level * 200 olan yeri direkt sabit 200 yaptık, y
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
-    // Barın içine yazdırılan yazı
-ctx.fillText(`${currentXP} / ${nextLevelXP} XP`, 270 + (480 / 2), 172);
+    ctx.fillText(`${ud.xp.toLocaleString()} / ${nextLevelXP.toLocaleString()} XP`, 270 + (480 / 2), 179);
 
     // Hizalamayı sola geri çekiyoruz
     ctx.textAlign = 'left';
