@@ -1511,7 +1511,20 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
   const guild = newState.guild || oldState.guild;
   if (!userId) return;
 
-  const key = `${guild.id}_${userId}`;
+  // Ses durumu değiştiğinde (voiceStateUpdate)
+// Örnek: Kullanıcı sesten çıktığında veya her X dakikada bir tetiklendiğinde:
+const key = `${oldState.guild.id}_${oldState.id}`; // veya newState
+let voiceData = userVoiceLevels.get(key) || { voiceXp: 0, voiceLevel: 1 };
+
+// Seste kaldığı süreye göre XP hesapla ve ekle (Örn: +10 XP)
+voiceData.voiceXp += 10; 
+
+// Ses Level atlama kontrolü
+if (voiceData.voiceXp >= voiceData.voiceLevel * 100) {
+    voiceData.voiceLevel += 1;
+    // İstersen sese özel bir kanala tebrik mesajı atabilirsin
+}
+
 
   // Durum 1: Kullanıcı bir ses kanalına katıldı
   if (!oldState.channelId && newState.channelId) {
@@ -1697,19 +1710,18 @@ client.on('messageCreate', async (message) => {
 
   const userId = message.author.id;
   const guildId = message.guild.id;
-  const key = `${guildId}_${userId}`;
+  // Mesaj gelince tetiklenen yer (messageCreate)
+const key = `${message.guild.id}_${message.author.id}`;
+let textData = userLevels.get(key) || { xp: 0, level: 1 };
 
-  // ── MAP YAPISINA UYGUN VERİ KONTROLÜ VE YÜKLEME ──
-  if (!userLevels.has(key)) {
-    userLevels.set(key, {
-      chatXp: 0,
-      chatLevel: 1,
-      voiceXp: 0,
-      voiceLevel: 1
-    });
-  }
+textData.xp += 5; // Her mesajda 5 XP verelim (senin kendi değerin neyse onu yaz)
 
-  const ud = userLevels.get(key);
+// Level atlama kontrolü (örnek: her 100 XP'de bir level)
+if (textData.xp >= textData.level * 100) {
+    textData.level += 1;
+    message.channel.send(`Tebrikler ${message.author}! Yazı seviyen **${textData.level}** oldu! 🎉`);
+}
+
   // Güvenlik: Eğer alt kırılımlar eksikse tamamla
   if (ud.chatXp === undefined) ud.chatXp = 0;
   if (ud.chatLevel === undefined) ud.chatLevel = 1;
