@@ -1711,8 +1711,10 @@ client.on('messageCreate', async (message) => {
   const userId = message.author.id;
   const guildId = message.guild.id;
   // Mesaj gelince tetiklenen yer (messageCreate)
+// Mesaj gelince tetiklenen yer (messageCreate)
 const key = `${message.guild.id}_${message.author.id}`;
 let textData = userLevels.get(key) || { xp: 0, level: 1 };
+const ud = userLevels.get(key) || { xp: 0, level: 1 };
 
 textData.xp += 5; // Her mesajda 5 XP verelim (senin kendi değerin neyse onu yaz)
 
@@ -1721,6 +1723,11 @@ if (textData.xp >= textData.level * 100) {
     textData.level += 1;
     message.channel.send(`Tebrikler ${message.author}! Yazı seviyen **${textData.level}** oldu! 🎉`);
 }
+
+// Haritaya geri kaydet ve JSON'a yaz
+userLevels.set(key, textData);
+saveUserLevels(); // Chat JSON'ını kaydeden kendi fonksiyonun
+
 
   // Güvenlik: Eğer alt kırılımlar eksikse tamamla
   if (ud.chatXp === undefined) ud.chatXp = 0;
