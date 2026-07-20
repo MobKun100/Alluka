@@ -1457,53 +1457,56 @@ client.on("voiceStateUpdate", (oldState, newState) => {
 client.on('voiceStateUpdate', async (oldState, newState) => {
   if (newState.member?.user.bot) return;
 
-  const userId = newState.id;
+  const userId = newState.member?.id || oldState.member?.id;
+  const guild = newState.guild || oldState.guild;
+  if (!userId) return;
+
+  const key = `${guild.id}_${userId}`;
 
   // Durum 1: Kullanıcı bir ses kanalına katıldı
   if (!oldState.channelId && newState.channelId) {
-    voiceSessions.set(userId, Date.now());
+    voiceSessions.set(key, Date.now());
   }
 
   // Durum 2: Kullanıcı ses kanalından ayrıldı veya oda değiştirdi
   if (oldState.channelId && (!newState.channelId || oldState.channelId !== newState.channelId)) {
-    const joinTime = voiceSessions.get(userId);
-    
+    const joinTime = voiceSessions.get(key);
+
     if (joinTime) {
       const timeSpent = Date.now() - joinTime;
-      const minutesSpent = Math.floor(timeSpent / 60000); // Milisaniyeyi dakikaya çevir
+      const minutesSpent = Math.floor(timeSpent / 60000); // Dakikaya çevir
 
       if (minutesSpent > 0) {
-        // Kullanıcı kaydı yoksa oluştur
-        if (!userLevels[userId]) {
-          userLevels[userId] = { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
+        if (!userLevels.has(key)) {
+          userLevels.set(key, { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 });
         }
 
-        userLevels[userId].voiceXp = userLevels[userId].voiceXp || 0;
-        userLevels[userId].voiceLevel = userLevels[userId].voiceLevel || 1;
+        const ud = userLevels.get(key);
+        if (ud.voiceXp === undefined) ud.voiceXp = 0;
+        if (ud.voiceLevel === undefined) ud.voiceLevel = 1;
 
         // Her dakika için 20 XP ekle
-        userLevels[userId].voiceXp += (minutesSpent * 20);
+        ud.voiceXp += (minutesSpent * 20);
 
         // Ses seviye atlama kontrolü (Her seviye için: seviye * 600 XP)
-        let reqVoiceXp = userLevels[userId].voiceLevel * 600;
-        while (userLevels[userId].voiceXp >= reqVoiceXp) {
-          userLevels[userId].voiceXp -= reqVoiceXp;
-          userLevels[userId].voiceLevel += 1;
-          reqVoiceXp = userLevels[userId].voiceLevel * 600;
+        let reqVoiceXp = ud.voiceLevel * 600;
+        while (ud.voiceXp >= reqVoiceXp) {
+          ud.voiceXp -= reqVoiceXp;
+          ud.voiceLevel += 1;
+          reqVoiceXp = ud.voiceLevel * 600;
         }
+
+        userLevels.set(key, ud);
       }
-      
-      // Sesten tamamen çıktıysa sil, oda değiştirdiyse yeni giriş zamanını güncelle
+
       if (!newState.channelId) {
-        voiceSessions.delete(userId);
+        voiceSessions.delete(key);
       } else {
-        voiceSessions.set(userId, Date.now());
+        voiceSessions.set(key, Date.now());
       }
     }
   }
 });
-
-
 
 
 // ── Davet log ─────────────────────────────────────────────────────────────────
@@ -1643,51 +1646,55 @@ client.on('messageCreate', async (message) => {
   if (message.author.bot || !message.guild) return;
 
   const userId = message.author.id;
+  const guildId = message.guild.id;
+  const key = `${guildId}_${userId}`;
 
-  // Kullanıcı kaydı yoksa varsayılan şablonu oluşturuyoruz
-  if (!userLevels[userId]) {
-    userLevels[userId] = {
+  // ── MAP YAPISINA UYGUN VERİ KONTROLÜ VE YÜKLEME ──
+  if (!userLevels.has(key)) {
+    userLevels.set(key, {
       chatXp: 0,
       chatLevel: 1,
       voiceXp: 0,
       voiceLevel: 1
-    };
+    });
   }
 
+  const ud = userLevels.get(key);
   // Güvenlik: Eğer alt kırılımlar eksikse tamamla
-  userLevels[userId].chatXp = userLevels[userId].chatXp || 0;
-  userLevels[userId].chatLevel = userLevels[userId].chatLevel || 1;
+  if (ud.chatXp === undefined) ud.chatXp = 0;
+  if (ud.chatLevel === undefined) ud.chatLevel = 1;
 
   // Mesaj başına rastgele XP ekle
   const xpToAdd = Math.floor(Math.random() * 10) + 15;
-  userLevels[userId].chatXp += xpToAdd;
+  ud.chatXp += xpToAdd;
 
   // Seviye atlama kontrolü (Her seviye için: seviye * 500 XP)
-  const reqChatXp = userLevels[userId].chatLevel * 500;
-  if (userLevels[userId].chatXp >= reqChatXp) {
-    userLevels[userId].chatXp -= reqChatXp;
-    userLevels[userId].chatLevel += 1;
-    
-    message.channel.send(`✦ Tebrikler ${message.author}, chat seviyen **${userLevels[userId].chatLevel}** oldu!`).catch(() => null);
+  const reqChatXp = ud.chatLevel * 500;
+  if (ud.chatXp >= reqChatXp) {
+    ud.chatXp -= reqChatXp;
+    ud.chatLevel += 1;
+
+    // Seviye atlayınca verilecek HB ödülü
+    const coinReward = ud.chatLevel * 150; 
+    addCoins(userId, guildId, coinReward);
+
+    // Düzelttiğim Kısım: Belirttiğin seviye kanalına afilli embed mesajı gönderir
+    await sendLevelUpMessage(message.member, ud.chatLevel, coinReward);
   }
 
+  // Veriyi haritaya geri kaydet
+  userLevels.set(key, ud);
 
+  // Mesaj istatistiğini kaydet (Global)
+  addMessageStat(userId, guildId);
 
+  // Düzelttiğim Kısım: guildId eksikti, eklendi! Artık HB tıkır tıkır yüklenir.
+  if (Math.random() < 0.05) {
+    const rastgeleCoin = Math.floor(Math.random() * 10) + 1;
+    addCoins(userId, guildId, rastgeleCoin);
+  }
 
-
-
-
-// Mesaj istatistiğini kaydet (Global)
-    addMessageStat(message.author.id, message.guild.id);
-
-// %5 şansla mesaj atarken ekstra 1-10 arası Coin/HB düşürme mantığı
-    if (Math.random() < 0.05) {
-      const rastgeleCoin = Math.floor(Math.random() * 10) + 1;
-      addCoins(message.author.id, rastgeleCoin);
-}
-
-
-  // 💬 Prefix Olmayan Otomatik Cevaplar (Cooldown'dan etkilenmez)
+  // 💬 Prefix Olmayan Otomatik Cevaplar
   if (!message.content.startsWith(prefix)) {
     const msg = message.content.toLowerCase();
     if (msg === "sa") return message.reply("as hg knk");
@@ -1697,29 +1704,26 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-  // 🛡️ 2 SANİYE COOLDOWN SİSTEMİ (Sadece komutlar için geçerli)
+  // 🛡️ 2 SANİYE COOLDOWN SİSTEMİ
   const simdi = Date.now();
-  const cooldownSuresi = 120; // 2 saniye
+  const cooldownSuresi = 2000; // Milisaniye cinsinden 2 saniye
 
   if (cooldowns.has(userId)) {
     const bitisZamani = cooldowns.get(userId) + cooldownSuresi;
-
     if (simdi < bitisZamani) {
       const kalanSure = ((bitisZamani - simdi) / 1000).toFixed(1);
       return message.reply(`⚠️ Sakin ol kanka! Komutları spamleme amk, **${kalanSure} saniye** bekle.`);
     }
   }
 
-  // Süre temizse zaman damgasını vur ve 2 saniye sonra hafızadan sil
   cooldowns.set(userId, simdi);
   setTimeout(() => cooldowns.delete(userId), cooldownSuresi);
 
-  // ⚙️ Komut Parçalama ve Çalıştırma Kısmı
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift()?.toLowerCase();
   if (!command) return;
 
-  // Bundan sonrası senin mevcut komutlarının (if-else veya switch blokları) devamı...
+  // Bundan sonrası senin mevcut komutlarının if-else/switch blokları...
 
 
   // ── YARDIM ─────────────────────────────────────────────────────────────────
@@ -3340,20 +3344,23 @@ client.on('messageCreate', async (message) => {
   }
 
   // ── PROFİL (Canvas) ────────────────────────────────────────────────────────
-  if (command === "profil") {
-  message.channel.send({ content: "✦ Profil kartı hazırlanıyor..." }).then(async (animationMsg) => {
-    try {
-      const hedefKullanici = message.mentions.users.first() || message.author;
-      const userId = hedefKullanici.id;
+    if (command === "profil") {
+    message.channel.send({ content: "✦ Profil kartı hazırlanıyor..." }).then(async (animationMsg) => {
+      try {
+        const hedefKullanici = message.mentions.users.first() || message.author;
+        const userId = hedefKullanici.id;
+        const guildId = message.guild.id;
+        const key = `${guildId}_${userId}`;
 
-      // Doğrudan senin userLevels logundan verileri çekiyoruz
-      const userData = userLevels[userId] || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
+        // Düzelttiğim Kısım: Veriyi artık nesne gibi değil, Map protokolüne uygun çekiyor
+        const userData = userLevels.get(key) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
 
-      // Canvas kurulumu
-      const canvas = createCanvas(900, 300);
-      const ctx = canvas.getContext('2d');
+        // Kanvas kurulumu
+        const canvas = createCanvas(900, 300);
+        const ctx = canvas.getContext('2d');
 
-      // Banner Çekme İşlemi
+        // Banner Çekme İşlemi... (Geri kalan grafik çizim kodlarınla birebir aynı devam ediyor)
+
       let bannerUrl = null;
       try {
         const rest = new REST({ version: '10' }).setToken(process.env.TOKEN || client.token);
