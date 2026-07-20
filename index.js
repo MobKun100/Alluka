@@ -3249,49 +3249,43 @@ async function generateProfileCard(target, ud, coins, prof, bannerUrl, avatarUrl
 
     // 4. Tekli İlerleme Çubuğu Hesaplaması (Mesaj Seviyesi)
     // generateProfileCard içindeki bar hesaplama kısmını burayla değiştir:
-const currentLevel = ud.level || 1;
-const currentXP = ud.xp || 0;
-
-// Üstteki embed'in mantığı (Level ne olursa olsun sonraki seviye hep 200 XP istiyorsa):
-const nextLevelXP = 200; 
-
-// EĞER her seviyede gereken XP artsın istiyorsan (Örn: Level * 100):
-// const nextLevelXP = currentLevel * 100; 
-
-const progress = Math.min(currentXP / nextLevelXP, 1);
-
+    // Var olan seviye ve XP değişkenlerini direkt kullanıyoruz
+    const currentLevel = ud.level; // a!level'deki seviye değişkenin
+    const currentXP = ud.xp;       // a!level'deki mevcut XP değişkenin
+    const maxXP = 200;             // a!level'deki seviye sınırı kaçsa o (sabit 200 ise 200 yaz geç)
+    
+    const progress = Math.min(currentXP / maxXP, 1);
 
     // Başlık ve Seviye Bilgisi
     ctx.fillStyle = '#b5b5b5';
     ctx.font = 'bold 15px sans-serif';
-    ctx.fillText('MESAJ SEVİYESİ', 270, 150);
+    ctx.fillText('MESAJ SEVİYESİ', 270, 145);
 
-    ctx.fillStyle = '#6a259c'; // Sağdaki seviye numarasını mor tonda belirginleştiriyoruz
+    ctx.fillStyle = '#6a259c'; 
     ctx.font = 'bold 15px sans-serif';
-    ctx.fillText(`LVL ${ud.level}`, 690, 150);
+    ctx.fillText(`LVL ${currentLevel}`, 690, 145);
 
-    // Boş Bar (Arka Plan)
+    // Boş Bar
     ctx.beginPath();
-    ctx.roundRect(270, 162, 480, 24, 12);
+    ctx.roundRect(270, 155, 480, 24, 12);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.fill();
 
-    // Dolu Bar (Ön Plan Mor Renk)
+    // Dolu Bar
     if (progress > 0) {
         ctx.beginPath();
-        ctx.roundRect(270, 162, 480 * progress, 24, 12);
-        ctx.fillStyle = '#8a33cc';
+        ctx.roundRect(270, 155, 480 * progress, 24, 12);
+        ctx.fillStyle = '#8a33cc'; 
         ctx.fill();
     }
 
-    // Bar İçi Yazısı (Mevcut XP / Gerekli XP)
+    // Yazıyı direkt kopyala-yapıştır mantığıyla var olan değişkenlerle basıyoruz
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${ud.xp.toLocaleString()} / ${nextLevelXP.toLocaleString()} XP`, 270 + (480 / 2), 179);
-
-    // Hizalamayı sola geri çekiyoruz
+    ctx.fillText(`${currentXP} / ${maxXP} XP`, 270 + (480 / 2), 172);
     ctx.textAlign = 'left';
+
 
     // 5. Yuvarlak Avatar Çizimi
     const avatarX = 145;
