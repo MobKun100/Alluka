@@ -136,6 +136,22 @@ if (fs.existsSync(userSquadsFile)) {
   }
 }
 
+const voiceLevelsFile = './userVoiceLevels.json';
+
+// Ses verilerini yükle
+function loadVoiceLevels() {
+    if (!fs.existsSync(voiceLevelsFile)) {
+        fs.writeFileSync(voiceLevelsFile, JSON.stringify([]));
+    }
+    return new Map(JSON.parse(fs.readFileSync(voiceLevelsFile, 'utf-8')));
+}
+
+// Ses verilerini kaydet
+function saveVoiceLevels(map) {
+    fs.writeFileSync(voiceLevelsFile, JSON.stringify(Array.from(map.entries()), null, 2));
+}
+
+
 
 
 // Yardımcı Squad Getirme Fonksiyonu
@@ -3352,12 +3368,22 @@ client.on('messageCreate', async (message) => {
         const guildId = message.guild.id;
         const key = `${guildId}_${userId}`;
 
-        // Düzelttiğim Kısım: Veriyi artık nesne gibi değil, Map protokolüne uygun çekiyor
-        const userData = userLevels.get(key) || { chatXp: 0, chatLevel: 1, voiceXp: 0, voiceLevel: 1 };
+        // 1. Yazı (Chat) Seviyesi Verilerini Çek
+        // Eğer veri yoksa varsayılan olarak xp: 0, level: 1 belirler
+        const textData = userLevels.get(key) || { xp: 0, level: 1 };
+
+        // 2. Ses (Voice) Seviyesi Verilerini Çek
+        // userVoiceLevels adında yeni oluşturduğun Map'ten veriyi alır
+        const voiceData = userVoiceLevels.get(key) || { voiceXp: 0, voiceLevel: 1 };
 
         // Kanvas kurulumu
         const canvas = createCanvas(900, 300);
         const ctx = canvas.getContext('2d');
+
+        // Kodunun devamında Canvas ile çizim yaparken bu değişkenleri kullanabilirsin:
+        // Yazı için: textData.level ve textData.xp
+        // Ses için: voiceData.voiceLevel ve voiceData.voiceXp
+
 
         // Banner Çekme İşlemi... (Geri kalan grafik çizim kodlarınla birebir aynı devam ediyor)
 
